@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0E1424"/>
+      <stop offset="100%" stop-color="#111932"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5FA8FF"/>
+      <stop offset="50%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#F0933F"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <g stroke="rgba(148,168,214,.18)" stroke-width="1">
+    <path d="M16 0v64M32 0v64M48 0v64"/>
+    <path d="M0 16h64M0 32h64M0 48h64"/>
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10" y="18" width="16" height="12" rx="3" stroke="#5FA8FF" stroke-width="2"/>
+    <rect x="38" y="18" width="16" height="12" rx="3" stroke="#A78BFA" stroke-width="2"/>
+    <rect x="24" y="38" width="16" height="12" rx="3" stroke="#F0933F" stroke-width="2"/>
+    <path d="M26 24h12" stroke="url(#trace)" stroke-width="2.5"/>
+    <path d="M46 30v6c0 2.2-1.8 4-4 4H32" stroke="#F0933F" stroke-width="2.5"/>
+  </g>
+  <g fill="#EDE7D9">
+    <circle cx="18" cy="24" r="2.3"/>
+    <circle cx="46" cy="24" r="2.3"/>
+    <circle cx="32" cy="44" r="2.3"/>
+  </g>
+</svg>
