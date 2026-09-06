@@ -42,6 +42,8 @@ button:disabled{opacity:.35;cursor:default}
 input[type=range]{accent-color:var(--attn);width:170px;cursor:pointer}
 select{font-family:var(--f-mono);font-size:11px;background:var(--panel);color:var(--ink);border:1px solid var(--line2);border-radius:3px;padding:5px 8px}
 .mono{font-family:var(--f-mono)}
+button,input[type=range],select,.chip,.hchip,#journey .jchip,#sidebar nav a,.enode .eh{touch-action:manipulation}
+input[type=range]{touch-action:pan-x}
 svg text{font-family:var(--f-mono);pointer-events:none}
 
 /* ============ LAYOUT ============ */
@@ -67,6 +69,64 @@ svg text{font-family:var(--f-mono);pointer-events:none}
 }
 .wrap{max-width:960px;margin:0 auto;padding:0 28px}
 .wide{max-width:1160px;margin:0 auto;padding:0 28px}
+@media(max-width:900px){
+  .wrap,.wide{padding:0 18px}
+  #hero{padding:44px 0 14px}
+  #hero .top{gap:22px}
+  #hero .stats{width:100%}
+  #heroCv{height:320px}
+  .figbar{align-items:flex-start}
+  .figctl{margin-left:0;width:100%}
+  .figbody{padding:18px}
+  .figbody{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch}
+  #f2layout,#f6grid{grid-template-columns:1fr!important}
+  #f13 .figbody>div{grid-template-columns:1fr!important}
+}
+@media(max-width:640px){
+  body{font-size:15.5px;line-height:1.62}
+  .wrap,.wide{padding:0 14px}
+  #hero h1{font-size:clamp(28px,10vw,44px)}
+  #hero .sub{font-size:16px}
+  #hero .stats{grid-template-columns:1fr;gap:12px}
+  #heroCv{height:260px}
+  .sec{padding:58px 0 8px}
+  .sec-no{font-size:11px}
+  .sec h2{line-height:1.12;margin-bottom:12px}
+  .sec .lead{font-size:16px;margin-bottom:20px}
+  .sec .body{font-size:15px}
+  .figbar{padding:10px 12px}
+  .figctl{gap:6px}
+  .figtag{font-size:9px}
+  .figname{font-size:9px;line-height:1.45}
+  button{min-height:38px;padding:8px 12px}
+  .seg button{min-height:38px;padding:8px 12px}
+  select{min-height:38px;padding:8px 10px}
+  input[type=range]{width:min(180px,100%)}
+  #topbar button{min-height:36px;padding:8px 10px}
+  #topbar b{font-size:13px}
+  #sidebar nav a{padding:10px 12px}
+  .hchip,#journey .jchip,.chip{min-height:36px;display:inline-flex;align-items:center}
+  .figbody{padding:14px}
+  figcaption{font-size:10px;padding:10px 12px;line-height:1.85}
+  .callout,.eq{padding:12px 14px}
+  .callout{font-size:14px}
+  .note{font-size:10px;line-height:1.75}
+  .hint{font-size:9px}
+  .stats2{grid-template-columns:1fr 1fr}
+  .stat{padding:10px 12px}
+  .stat b{font-size:17px}
+  .vpanel,.ecard,.readout{padding:12px 13px}
+  .brow{grid-template-columns:72px 1fr 60px;gap:8px;font-size:9.5px}
+  #legend{gap:10px}
+  #journey .jarr{display:none}
+  .enode .eh{flex-wrap:wrap}
+  .enode .eh .mid{margin-left:0;width:100%;justify-content:space-between}
+  #tip{max-width:min(260px,calc(100vw - 24px))}
+}
+@media(max-width:520px){
+  #moeStage{min-width:820px}
+  #f16stage{min-width:760px}
+}
 
 /* ============ HERO ============ */
 #hero{padding:64px 0 20px}

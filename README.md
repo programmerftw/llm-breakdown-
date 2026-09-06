@@ -280,7 +280,7 @@ The external link that informed this project during development:
 
 Add your own published article link here:
 
-- `[Add your article title here](PASTE_YOUR_LINK_HERE)`
+- [From GPT-2 to Kimi K3: The Journey of 22,580 Models in One](https://chatteronai.hashnode.dev/from-gpt-2-to-kimi-k3-the-journey-of-22-580-models-in-one?utm_source=hashnode&utm_medium=feed)
 
 Example:
 
@@ -288,7 +288,7 @@ Example:
 
 ## Suggested README Update After You Publish
 
-Once your own article is live, replace the placeholder above and optionally add:
+Your article link is now added above. You can still optionally add:
 
 - where the article is published
 - date of publication
