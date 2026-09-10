@@ -1,5 +1,7 @@
 # From GPT-2 to Kimi3
 
+**Language:** English · [Русский](./README.ru.md)
+
 An interactive, single-file research-explainer website that traces how language-model architecture evolved from GPT-2 to Kimi K3.
 
 The site is designed as a visual narrative rather than a static blog post: each major idea is presented as an interactive diagram, live mini-simulation, or mathematical explainer. The goal is to help readers understand not just what changed, but why those changes became necessary as models scaled in depth, sequence length, memory pressure, and routing complexity.

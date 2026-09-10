@@ -1,5 +1,7 @@
 # From GPT-2 to Kimi K3: The Journey of 22,580 Models in One
 
+**Language:** English · [Русский](./article.ru.md)
+
 *A comprehensive visual breakdown of how AI architecture evolved from simple scaling to intelligent memory management*
 
 **By Ujjwal Balaji**
