@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>От GPT-2 до Kimi K3 — интерактивная эволюция архитектуры</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+/* ============ СИСТЕМА ДИЗАЙНА ============ */
+:root{
+  --bg:#0B0F1C; --bg2:#0E1424; --panel:#111932; --panel2:#141D38;
+  --ink:#EDE7D9; --ink2:#C2C9DB; --ink3:#97A1B8;
+  --line:rgba(148,168,214,.17); --line2:rgba(148,168,214,.30);
+  --attn:#5FA8FF; --mem:#A78BFA; --route:#F0933F; --latent:#38C6D6; --res:#46C288;
+  --amber:#D9A441;
+  --f-head:'Space Grotesk',sans-serif; --f-body:'Source Serif 4',Georgia,serif; --f-mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16.5px;line-height:1.68;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(148,168,214,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(148,168,214,.045) 1px,transparent 1px),linear-gradient(rgba(148,168,214,.075) 1px,transparent 1px),linear-gradient(90deg,rgba(148,168,214,.075) 1px,transparent 1px);
+  background-size:28px 28px,28px 28px,140px 140px,140px 140px}
+::selection{background:rgba(95,168,255,.30)}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#232f52;border-radius:5px}::-webkit-scrollbar-track{background:var(--bg)}
+a{color:var(--attn);text-decoration:none}a:hover{text-decoration:underline}
+b,strong{font-weight:600}
+button{font-family:var(--f-mono);cursor:pointer;color:var(--ink);background:transparent;border:1px solid var(--line2);border-radius:3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;transition:background .15s,border-color .15s,color .15s;display:inline-flex;align-items:center;gap:6px}
+button:hover{border-color:var(--ink3);background:rgba(148,168,214,.08)}
+button.on{background:rgba(95,168,255,.14);border-color:var(--attn);color:var(--attn)}
+button.c-attn.on{background:rgba(95,168,255,.14);border-color:var(--attn);color:var(--attn)}
+button.c-mem.on{background:rgba(167,139,250,.14);border-color:var(--mem);color:var(--mem)}
+button.c-route.on{background:rgba(240,147,63,.14);border-color:var(--route);color:var(--route)}
+button.c-latent.on{background:rgba(56,198,214,.12);border-color:var(--latent);color:var(--latent)}
+button.c-res.on{background:rgba(70,194,136,.12);border-color:var(--res);color:var(--res)}
+button:disabled{opacity:.35;cursor:default}
+input[type=range]{accent-color:var(--attn);width:170px;cursor:pointer}
+select{font-family:var(--f-mono);font-size:11px;background:var(--panel);color:var(--ink);border:1px solid var(--line2);border-radius:3px;padding:5px 8px}
+.mono{font-family:var(--f-mono)}
+button,input[type=range],select,.chip,.hchip,#journey .jchip,#sidebar nav a,.enode .eh{touch-action:manipulation}
+input[type=range]{touch-action:pan-x}
+svg text{font-family:var(--f-mono);pointer-events:none}
+
+/* ============ КОМПОНОВКА ============ */
+#progress{position:fixed;top:0;left:0;height:2px;background:var(--attn);z-index:60;width:0}
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:264px;background:var(--bg2);border-right:1px solid var(--line);z-index:50;padding:26px 0 20px;overflow-y:auto;transition:transform .28s}
+#sidebar .brand{padding:0 22px 18px;border-bottom:1px solid var(--line)}
+#sidebar .brand h3{font-family:var(--f-head);font-size:15px;font-weight:700;letter-spacing:.02em;line-height:1.3}
+#sidebar .brand p{font-family:var(--f-mono);font-size:9.5px;color:var(--ink3);margin-top:6px;letter-spacing:.08em;text-transform:uppercase}
+#sidebar nav{padding:14px 10px}
+#sidebar .grp{font-family:var(--f-mono);font-size:9.5px;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;padding:14px 12px 6px}
+#sidebar nav a{display:flex;gap:9px;align-items:baseline;padding:4.5px 12px;color:var(--ink2);font-size:12.5px;font-family:var(--f-mono);border-left:2px solid transparent;border-radius:0 3px 3px 0}
+#sidebar nav a i{font-style:normal;font-size:9.5px;color:var(--ink3);min-width:18px}
+#sidebar nav a:hover{color:var(--ink);background:rgba(148,168,214,.06);text-decoration:none}
+#sidebar nav a.act{color:var(--attn);border-left-color:var(--attn);background:rgba(95,168,255,.07)}
+#sidebar nav a.act i{color:var(--attn)}
+#main{margin-left:264px;position:relative;z-index:1}
+#topbar{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg2);border-bottom:1px solid var(--line);z-index:55;align-items:center;padding:0 16px;gap:12px}
+#topbar b{font-family:var(--f-head);font-size:14px}
+#topbar button{border:none;font-size:16px;padding:6px 10px;text-transform:none;letter-spacing:0}
+.lang-link{display:inline-block;font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line2);border-radius:3px;padding:5px 9px;margin-top:10px}
+#topbar .lang-link{margin:0 0 0 auto}
+@media(max-width:1080px){
+  #sidebar{transform:translateX(-100%)}#sidebar.open{transform:none;box-shadow:0 0 60px rgba(0,0,0,.6)}
+  #main{margin-left:0;padding-top:52px}#topbar{display:flex}
+}
+.wrap{max-width:960px;margin:0 auto;padding:0 28px}
+.wide{max-width:1160px;margin:0 auto;padding:0 28px}
+/* ============ ГЛАВНЫЙ ЭКРАН ============ */
+#hero{padding:64px 28px 20px}
+#hero .top{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end;justify-content:space-between;margin-bottom:30px}
+#hero h1{font-family:var(--f-head);font-weight:700;font-size:clamp(36px,5vw,62px);line-height:1.06;letter-spacing:-.015em;max-width:640px}
+#hero h1 em{font-style:normal;color:var(--attn)}
+#hero .sub{margin-top:16px;font-size:18px;color:var(--ink2);max-width:560px;font-style:italic}
+#hero .stats{display:grid;grid-template-columns:auto auto;gap:10px 30px;font-family:var(--f-mono);font-size:12px;color:var(--ink2);border-left:2px solid var(--attn);padding-left:18px}
+#hero .stats b{display:block;font-size:20px;color:var(--ink);font-weight:700}
+#hero .stats span i{font-style:normal;color:var(--ink3);display:block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase}
+#heroCvBox{border:1px solid var(--line);background:var(--bg2);border-radius:4px;overflow:hidden}
+#heroCv{display:block;width:100%;height:400px}
+#eraChips{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:var(--panel)}
+.hchip{position:relative;font-family:var(--f-mono);font-size:10.5px;padding:5px 11px;border:1px solid var(--line2);border-radius:3px;color:var(--ink2);cursor:pointer;transition:all .15s;user-select:none}
+.hchip b{font-weight:500}
+.hchip i{font-style:normal;color:var(--ink3);margin-left:6px;font-size:9.5px}
+.hchip:hover{border-color:var(--ink3)}
+.hchip.on{color:var(--ink);border-color:var(--attn);background:rgba(95,168,255,.10)}
+.hchip.on::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;background:var(--attn);width:var(--p,0%)}
+#hero .scrollcue{font-family:var(--f-mono);font-size:10px;color:var(--ink3);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-top:22px;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(5px)}}
+
+/* ============ РАЗДЕЛЫ ============ */
+.sec{padding:78px 0 8px;position:relative}
+.sec-no{font-family:var(--f-mono);font-size:13px;color:var(--attn);letter-spacing:.25em;margin-bottom:8px}
+.sec h2{font-family:var(--f-head);font-weight:700;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.01em;line-height:1.15;margin-bottom:14px}
+.sec .lead{font-size:17.5px;color:var(--ink2);max-width:720px;margin-bottom:26px}
+.sec .body{max-width:720px;color:var(--ink2);margin-bottom:20px}
+.callout{border-left:3px solid var(--amber);background:var(--panel);padding:14px 18px;margin:20px 0;font-size:15px;color:var(--ink2);border-radius:0 4px 4px 0}
+.callout.v{border-left-color:var(--mem)}.callout.b{border-left-color:var(--attn)}.callout.g{border-left-color:var(--res)}.callout.o{border-left-color:var(--route)}.callout.c{border-left-color:var(--latent)}
+.callout .src{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.1em;color:var(--ink3);text-transform:uppercase;display:block;margin-bottom:5px}
+.tag{display:inline-block;font-family:var(--f-mono);font-size:8.5px;letter-spacing:.09em;padding:1.5px 6px;border-radius:2px;vertical-align:2px;margin-left:8px}
+.tag.src{border:1px solid rgba(70,194,136,.5);color:var(--res)}
+.tag.sim{border:1px dashed rgba(217,164,65,.55);color:var(--amber)}
+#legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--f-mono);font-size:10px;color:var(--ink3);margin:14px 0 0;align-items:center}
+#legend .tag{margin:0}
+.rv{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.rv.in{opacity:1;transform:none}
+
+/* ============ ИЛЛЮСТРАЦИИ ============ */
+.fig{border:1px solid var(--line);background:var(--bg2);border-radius:4px;margin:18px 0 30px;overflow:hidden}
+.figbar{display:flex;align-items:center;gap:12px;padding:9px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.figtag{font-family:var(--f-mono);font-size:10px;color:var(--attn);letter-spacing:.14em}
+.figname{font-family:var(--f-mono);font-size:10px;color:var(--ink3);letter-spacing:.12em}
+.figctl{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.figbody{padding:22px;position:relative}
+.figbody svg{display:block;width:100%;height:auto;overflow:visible}
+figcaption{font-family:var(--f-mono);font-size:11px;color:var(--ink3);padding:10px 14px;border-top:1px solid var(--line);line-height:1.7}
+figcaption b{color:var(--ink2);font-weight:500}
+.eq{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--attn);border-radius:0 4px 4px 0;padding:14px 18px;margin:16px 0;overflow-x:auto;color:var(--ink)}
+.eq.v{border-left-color:var(--mem)}.eq.o{border-left-color:var(--route)}.eq.c{border-left-color:var(--latent)}.eq.g{border-left-color:var(--res)}
+.eq .cap{font-family:var(--f-mono);font-size:10px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.eqtex{display:block;min-width:min-content}
+.eqtex .katex-display{margin:.2em 0}
+.katex{font-size:1.02em;max-width:100%}
+.katex-display{overflow-x:auto;overflow-y:hidden;padding-bottom:2px}
+[class*="kx-sym"]{border-bottom:1px dashed rgba(148,168,214,.5);cursor:help;transition:background .12s,color .12s;padding:0 1px}
+[class*="kx-sym"]:hover,[class*="kx-sym"].lit{background:rgba(95,168,255,.22);color:#cfe2ff!important;border-bottom-style:solid}
+
+/* Всплывающая подсказка */
+#tip{position:fixed;z-index:100;max-width:300px;background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:10px 13px;font-size:13px;color:var(--ink2);pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:0 8px 30px rgba(0,0,0,.5);line-height:1.5}
+#tip .tn{font-family:var(--f-mono);font-size:11.5px;color:var(--attn);font-weight:700}
+#tip .ts{font-family:var(--f-mono);font-size:10px;color:var(--ink3);margin:2px 0 5px}
+
+/* Матрицы и ячейки */
+.mgrid{display:grid;gap:2px}
+.mcell{width:34px;height:28px;border-radius:2px;position:relative;font-family:var(--f-mono);font-size:8.5px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75);cursor:pointer;transition:transform .1s}
+.mcell:hover{transform:scale(1.12);z-index:2;outline:1px solid var(--ink3)}
+.mcell.masked{background:repeating-linear-gradient(45deg,rgba(148,168,214,.10) 0 3px,transparent 3px 7px)!important;color:transparent}
+.mcell.masked.lit{outline:2px solid var(--amber);outline-offset:-1px;transform:scale(1.04);z-index:2}
+.mcell.rowhl{outline:1.5px solid var(--attn)}
+.mlab{font-family:var(--f-mono);font-size:10.5px;color:var(--ink2);display:flex;align-items:center;justify-content:center}
+.chip{font-family:var(--f-mono);font-size:10.5px;padding:3px 9px;border:1px solid var(--line2);border-radius:3px;color:var(--ink2);background:var(--panel);transition:all .15s;white-space:nowrap}
+.chip.gen{border-style:dashed}
+.chip.cur{border-color:var(--attn);color:var(--attn);background:rgba(95,168,255,.12)}
+.chip.done{border-color:var(--res);color:var(--res)}
+.vecbar{display:inline-block;width:7px;background:var(--attn);border-radius:1px;margin-right:2.5px;vertical-align:bottom}
+.vgrid{display:flex;align-items:flex-end;gap:3px;height:34px}
+.vgrid i{display:block;width:9px;background:var(--attn);border-radius:1px;opacity:.85}
+
+/* Хронология эволюции */
+#evo{position:relative;padding-left:34px}
+#evo::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--line2)}
+.enode{position:relative;margin-bottom:14px;border:1px solid var(--line);border-radius:4px;background:var(--bg2)}
+.enode::before{content:"";position:absolute;left:-31px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--ink3);transition:all .2s}
+.enode.open::before{border-color:var(--ink);transform:scale(1.2)}
+.enode .eh{display:flex;align-items:baseline;gap:12px;padding:13px 18px;cursor:pointer;user-select:none}
+.enode .eh:hover{background:rgba(148,168,214,.05)}
+.enode .en{font-family:var(--f-mono);font-size:10.5px;color:var(--ink3);min-width:20px}
+.enode .et{font-family:var(--f-head);font-weight:600;font-size:18px}
+.enode .ey{font-family:var(--f-mono);font-size:10px;color:var(--ink3);margin-left:auto;letter-spacing:.06em}
+.enode .eb{max-height:0;overflow:hidden;transition:max-height .45s ease}
+.enode.open .eb{max-height:900px}
+.enode .ebi{padding:4px 18px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.ecard{border:1px solid var(--line);border-radius:3px;padding:11px 13px;background:var(--panel);font-size:13.5px;color:var(--ink2);line-height:1.55}
+.ecard b{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:6px}
+.ecard.p b{color:var(--amber)}.ecard.i b{color:var(--attn)}.ecard.b b{color:var(--res)}.ecard.t b{color:var(--mem)}
+.elink{font-family:var(--f-mono);font-size:10px;color:var(--attn);display:inline-block;margin-top:8px;letter-spacing:.08em}
+.enode .eh .chev{margin-left:auto;color:var(--ink3);transition:transform .3s}
+.enode.open .eh .chev{transform:rotate(180deg)}
+.enode .ey{margin-left:0}
+.enode .eh .mid{margin-left:auto;display:flex;align-items:center;gap:14px}
+
+/* Лента этапов */
+#journey{display:flex;flex-wrap:wrap;gap:0;align-items:center;margin:18px 0 6px}
+#journey .jchip{font-family:var(--f-mono);font-size:10.5px;padding:5px 11px;border:1px solid var(--line2);border-radius:3px;color:var(--ink2);cursor:pointer;transition:all .15s;white-space:nowrap}
+#journey .jchip:hover{color:var(--ink);border-color:var(--ink3);transform:translateY(-2px);text-decoration:none}
+#journey .jarr{color:var(--ink3);font-family:var(--f-mono);font-size:11px;padding:0 4px}
+
+/* Компоновка сравнений */
+.vs{display:grid;grid-template-columns:1fr 44px 1fr;gap:0;align-items:stretch}
+.vs .vsmid{display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);color:var(--ink3);font-size:10px;letter-spacing:.15em}
+.vpanel{border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:16px;min-width:0}
+.vpanel h4{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;font-weight:500}
+.vpanel h4.ca{color:var(--attn)}.vpanel h4.cm{color:var(--mem)}.vpanel h4.cr{color:var(--route)}.vpanel h4.cc{color:var(--latent)}.vpanel h4.cg{color:var(--res)}
+.qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:14px}
+.qa div{font-size:13px;color:var(--ink2);border-top:1px solid var(--line);padding-top:8px}
+.qa b{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:4px}
+.qa .q1 b{color:var(--attn)}.qa .q2 b{color:var(--amber)}.qa .q3 b{color:var(--res)}.qa .q4 b{color:var(--mem)}
+@media(max-width:800px){.vs{grid-template-columns:1fr}.vs .vsmid{padding:6px 0}}
+
+/* Сетка статистики */
+.stats2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.stat{border:1px solid var(--line);border-radius:3px;padding:12px 14px;background:var(--panel)}
+.stat b{font-family:var(--f-head);font-size:19px;font-weight:700;display:block}
+.stat span{font-family:var(--f-mono);font-size:9px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase}
+
+/* Вкладки и сегменты */
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:6px 14px}
+.seg button.on{background:var(--attn);color:#071018}
+.seg button:not(.on):hover{background:rgba(148,168,214,.08)}
+
+/* Сцена MoE */
+#moeStage{position:relative;height:330px}
+#moeStage .tokfly{position:absolute;font-family:var(--f-mono);font-size:11px;padding:4px 10px;border:1px solid var(--attn);border-radius:3px;background:rgba(95,168,255,.15);color:var(--attn);transition:transform .8s cubic-bezier(.5,0,.3,1),opacity .4s;z-index:5}
+.flow{stroke-dasharray:5 7;animation:dashf 1.1s linear infinite}
+@keyframes dashf{to{stroke-dashoffset:-12}}
+.pop{animation:pop .4s ease}
+@keyframes pop{from{opacity:0;transform:scale(.6)}}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.dimmed{opacity:.22;transition:opacity .35s}
+.svgbox{transition:opacity .35s}
+.note{font-family:var(--f-mono);font-size:10.5px;color:var(--ink3);margin-top:10px;line-height:1.7}
+.note b{color:var(--ink2)}
+.readout{font-family:var(--f-mono);font-size:11.5px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 13px;line-height:1.9;white-space:pre-wrap}
+.readout .hl{color:var(--attn)}.readout .hv{color:var(--mem)}.readout .ho{color:var(--route)}.readout .hc{color:var(--latent)}.readout .hg{color:var(--res)}
+.stepdot{display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid var(--line2);margin-right:4px;vertical-align:1px}
+.stepdot.on{background:var(--attn);border-color:var(--attn)}
+.hint{font-family:var(--f-mono);font-size:9.5px;color:var(--ink3);letter-spacing:.06em}
+.bars{display:flex;flex-direction:column;gap:7px}
+.brow{display:grid;grid-template-columns:96px 1fr 78px;gap:10px;align-items:center;font-family:var(--f-mono);font-size:10.5px;color:var(--ink2)}
+.brow .trk{height:12px;background:rgba(148,168,214,.09);border-radius:2px;overflow:hidden}
+.brow .fl{height:100%;border-radius:2px;transition:width .5s ease}
+.big-chart{font-family:var(--f-mono);font-size:10px;color:var(--ink3)}
+.f9row{display:grid;grid-template-columns:56px minmax(0,1fr) 190px;gap:12px;align-items:center;cursor:pointer}
+.f15brow{grid-template-columns:240px minmax(40px,1fr) 84px}
+
+footer{margin-top:90px;border-top:1px solid var(--line);padding:44px 0 60px;background:var(--bg2)}
+footer .fs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;font-size:13.5px;color:var(--ink2)}
+footer h5{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+footer li{list-style:none;margin:5px 0}
+footer .disc{margin-top:26px;font-family:var(--f-mono);font-size:10px;color:var(--ink3);line-height:1.8}
+footer .made{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--ink2);text-align:center}
+footer .made .heart{color:#F0555F}
+@media(max-width:900px){
+  .wrap,.wide{padding:0 18px}
+  #hero{padding:44px 18px 14px}
+  #hero .top{gap:22px}
+  #hero .stats{width:100%}
+  #heroCv{height:320px}
+  .figbar{align-items:flex-start}
+  .figctl{margin-left:0;width:100%}
+  .figbody{padding:18px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch}
+  #f2layout,#f6grid{grid-template-columns:1fr!important}
+  #f13 .figbody>div{grid-template-columns:1fr!important}
+}
+@media(max-width:640px){
+  body{font-size:15.5px;line-height:1.62}
+  .wrap,.wide{padding:0 14px}
+  #hero h1{font-size:clamp(28px,10vw,44px)}
+  #hero .sub{font-size:16px}
+  #hero .stats{grid-template-columns:1fr;gap:12px}
+  #heroCv{height:260px}
+  .sec{padding:58px 0 8px}
+  .sec-no{font-size:11px}
+  .sec h2{line-height:1.12;margin-bottom:12px}
+  .sec .lead{font-size:16px;margin-bottom:20px}
+  .sec .body{font-size:15px}
+  .figbar{padding:10px 12px}
+  .figctl{gap:6px}
+  .figtag{font-size:9px}
+  .figname{font-size:9px;line-height:1.45}
+  button{min-height:38px;padding:8px 12px}
+  .seg button{min-height:38px;padding:8px 12px}
+  select{min-height:38px;padding:8px 10px}
+  input[type=range]{width:min(180px,100%)}
+  #topbar button{min-height:36px;padding:8px 10px}
+  #topbar b{font-size:13px}
+  #sidebar nav a{padding:10px 12px}
+  .hchip,#journey .jchip,.chip{min-height:36px;display:inline-flex;align-items:center}
+  .figbody{padding:14px}
+  figcaption{font-size:10px;padding:10px 12px;line-height:1.85}
+  .callout,.eq{padding:12px 14px}
+  .callout{font-size:14px}
+  .note{font-size:10px;line-height:1.75}
+  .hint{font-size:9px}
+  .stats2{grid-template-columns:1fr 1fr}
+  .stat{padding:10px 12px}
+  .stat b{font-size:17px}
+  .f9row{grid-template-columns:40px minmax(0,1fr);gap:7px 10px}
+  .f9row .f9mem{grid-column:2;margin:-3px 0 5px;white-space:normal}
+  #f9 .figbody{overflow-x:hidden}
+  .f12compare{grid-template-columns:1fr!important}
+  #f15bbody .f15brow{grid-template-columns:minmax(116px,1.4fr) minmax(48px,1fr) 72px;gap:6px;font-size:8.5px}
+  .vpanel,.ecard,.readout{padding:12px 13px}
+  .brow{grid-template-columns:72px 1fr 60px;gap:8px;font-size:9.5px}
+  #legend{gap:10px}
+  #journey .jarr{display:none}
+  .enode .eh{flex-wrap:wrap}
+  .enode .eh .mid{margin-left:0;width:100%;justify-content:space-between}
+  #tip{max-width:min(260px,calc(100vw - 24px))}
+  #f1body svg{min-width:960px}
+  #f3body svg,#f5body>svg,#f5bbody svg,#f8svgwrap svg,#f10body svg,#f15chartA svg,#f15chartB svg,#f16stage svg{min-width:800px}
+  #f13svgwrap svg{min-width:560px}
+}
+@media(max-width:520px){
+  #moeStage{min-width:820px}
+  #f16stage{min-width:800px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="tip"></div>
+
+<div id="topbar"><button id="menuBtn" aria-label="Меню">☰</button><b>От GPT-2 до Kimi K3</b><a class="lang-link" href="./index.html" lang="en">English</a></div>
+
+<aside id="sidebar">
+  <div class="brand">
+    <h3>От GPT-2 до Kimi K3</h3>
+    <p>Интерактивная эволюция архитектуры</p>
+    <a class="lang-link" href="./index.html" lang="en">English</a>
+  </div>
+  <nav id="nav">
+    <div class="grp">Начало</div>
+    <a href="#intro"><i>00</i>Путь</a>
+    <div class="grp">Основы</div>
+    <a href="#s1"><i>01</i>Отправная точка: GPT-2</a>
+    <a href="#s2"><i>02</i>Механизм внимания</a>
+    <a href="#s3"><i>03</i>Квадратичная сложность</a>
+    <a href="#s4"><i>04</i>KV-кэш</a>
+    <div class="grp">Линейная память</div>
+    <a href="#s5"><i>05</i>Линейное внимание</a>
+    <a href="#s6"><i>06</i>DeltaNet</a>
+    <a href="#s7"><i>07</i>Gated DeltaNet</a>
+    <div class="grp">Внимание Kimi</div>
+    <a href="#s8"><i>08</i>KDA</a>
+    <a href="#s9"><i>09</i>Гибридное внимание</a>
+    <a href="#s10"><i>10</i>MLA</a>
+    <div class="grp">Масштаб и глубина</div>
+    <a href="#s11"><i>11</i>Смесь экспертов</a>
+    <a href="#s12"><i>12</i>AttnRes</a>
+    <a href="#s13"><i>13</i>Kimi K3</a>
+    <div class="grp">Итоги</div>
+    <a href="#s14"><i>14</i>Карта эволюции</a>
+    <a href="#s15"><i>15</i>Анализ сложности</a>
+    <a href="#s16"><i>16</i>Префилл и декодирование</a>
+    <a href="#s17"><i>17</i>Математический практикум</a>
+    <a href="#s18"><i>18</i>Сравнения</a>
+  </nav>
+</aside>
+
+<div id="main">
+
+<!-- ================= ГЛАВНЫЙ ЭКРАН ================= -->
+<header id="hero" class="wide">
+  <div class="top">
+    <div>
+      <h1>Как мы пришли от <em>GPT-2</em> к <em>Kimi K3</em>?</h1>
+      <p class="sub">Проследите эволюцию внимания, памяти, вычислений и маршрутизации — от одной архитектурной проблемы к другой.</p>
+    </div>
+    <div class="stats">
+      <span><b>124 млн → 2,8 трлн</b><i>параметров</i></span>
+      <span><b>×22 580</b><i>за 7 лет</i></span>
+      <span><b>1 млн</b><i>токенов контекста</i></span>
+      <span><b>23</b><i>группы по четыре слоя</i></span>
+    </div>
+  </div>
+  <div id="heroCvBox"><canvas id="heroCv"></canvas><div id="eraChips"></div></div>
+  <div class="scrollcue">▼ &nbsp;прокрутите, чтобы начать&nbsp; ▼</div>
+</header>
+
+<!-- ================= ВВЕДЕНИЕ ================= -->
+<section class="sec rv" id="intro">
+  <div class="wrap">
+    <div class="sec-no">00 / ОБЗОР</div>
+    <h2>Дело не только в масштабе</h2>
+    <p class="lead">Двадцать две тысячи пятьсот восемьдесят. Столько моделей GPT-2 помещается в Kimi K3. Но самое интересное за последние семь лет — не этот множитель, а то, что пришлось изменить <i>внутри</i> архитектуры, чтобы таким масштабом можно было пользоваться.</p>
+    <p class="body">На этой странице вся линия развития собрана в интерактивных схемах. Каждый механизм показан наглядно, каждый практикум выполняет вычисления с конкретными значениями на небольших тензорах, а каждый архитектурный шаг появился потому, что предыдущий подход упёрся в ограничение: <b class="mono" style="color:var(--attn)">механизм внимания (attention)</b> связывает каждый токен с каждым; <b class="mono" style="color:var(--mem)">память (memory)</b> нужно хранить, обновлять и очищать; <b class="mono" style="color:var(--route)">маршрутизация (routing)</b> направляет ёмкость туда, где она нужна; <b class="mono" style="color:var(--res)">остаточный поток (residual stream)</b> переносит информацию через всю глубину сети.</p>
+    <div id="legend">
+      <span>Обозначения:</span>
+      <span class="tag src">ИСТОЧНИК</span><span>(SOURCE): указано в техническом разборе или научной работе</span>
+      <span class="tag sim">УЧЕБНЫЙ ПРИМЕР</span><span>(ILLUSTRATIVE): упрощение для наглядности</span>
+    </div>
+    <p class="note" style="margin-top:14px"><b>Весь путь одним взглядом</b> — нажмите на этап, чтобы перейти к его разделу:</p>
+    <div id="journey"></div>
+  </div>
+</section>
+
+<!-- ================= S1 GPT-2 ================= -->
+<section class="sec rv" id="s1">
+  <div class="wrap">
+    <div class="sec-no">01 / ОСНОВЫ</div>
+    <h2>Отправная точка: GPT-2</h2>
+    <p class="lead">GPT-2 (2019) — исходная модель: трансформер только с декодером (decoder-only Transformer), который предсказывает следующий токен по всему предшествующему контексту. Далее будем называть его декодерным трансформером. Каждая последующая архитектура в этой истории меняет именно этот каркас, поэтому сначала покажем весь конвейер.</p>
+    <figure class="fig" id="f1">
+      <div class="figbar"><span class="figtag">РИС. 01</span><span class="figname">ПРЯМОЙ ПРОХОД GPT-2 · 124 МЛН ПАРАМЕТРОВ</span>
+        <div class="figctl">
+          <button id="f1toggle" class="c-attn">Развернуть блок трансформера</button>
+          <button id="f1mode">Технический режим: выкл.</button>
+        </div>
+      </div>
+      <div class="figbody" id="f1body"></div>
+      <figcaption><b>КОНФИГУРАЦИЯ [ИСТОЧНИК]</b> — словарь: 50 304 токена (исходный размер 50 257 увеличен до числа, кратного 64) · 12 слоёв · 12 голов · n_embd 768 · расширение многослойного перцептрона (multilayer perceptron, MLP) 4× (768→3072→768). Нажмите на блок с пометкой ×12, чтобы открыть один слой трансформера.</figcaption>
+    </figure>
+    <div class="callout b"><span class="src">Неэффективность, с которой всё начинается</span>При генерации декодерный трансформер вычисляет представления для <b>каждой</b> входной позиции, но при декодировании (decode), то есть пошаговой генерации, используются только логиты <b>последней</b> позиции. Без кэширования эта работа повторяется для каждого нового токена — именно это исправляет KV-кэш (кэш ключей и значений) в §04.</div>
+  </div>
+</section>
+
+<!-- ================= S2 ВНИМАНИЕ ================= -->
+<section class="sec rv" id="s2">
+  <div class="wrap">
+    <div class="sec-no">02 / ОСНОВЫ</div>
+    <h2>Механизм внимания — наглядно</h2>
+    <p class="lead">Каждая позиция задаёт вопрос — формирует <b style="color:var(--attn)">запрос (query)</b>, оценивает <b style="color:var(--attn)">ключ (key)</b> каждой видимой позиции и смешивает их <b style="color:var(--attn)">значения (values)</b>. Матрица ниже выполняет настоящий расчёт: наведите указатель на токен, чтобы увидеть его запрос, ключи, оценки и полученную взвешенную смесь значений.</p>
+    <figure class="fig" id="f2">
+      <div class="figbar"><span class="figtag">РИС. 02</span><span class="figname">МАТРИЦА КАУЗАЛЬНОГО ВНИМАНИЯ</span>
+        <div class="figctl">
+          <label class="hint" for="f2slider">N = <span id="f2n">6</span></label>
+          <input type="range" id="f2slider" min="4" max="12" value="6">
+          <button id="f2mask" class="on">Каузальная маска: ВКЛ.</button>
+        </div>
+      </div>
+      <div class="figbody">
+        <div style="display:grid;grid-template-columns:minmax(300px,1fr) minmax(260px,380px);gap:26px;align-items:start" id="f2layout">
+          <div id="f2matWrap"></div>
+          <div id="f2panel"></div>
+        </div>
+      </div>
+      <figcaption id="f2cap"><b>Наведите указатель на строку</b>, чтобы изучить токен; <b>наведите указатель на символы в формуле</b>, чтобы подсветить соответствующую часть вычисления. Исходные оценки заданы заранее, а маска, масштабирование и softmax вычисляются в реальном времени. Интенсивность синего показывает веса внимания.</figcaption>
+    </figure>
+    <div class="eq"><div class="cap">Внимание на основе масштабированного скалярного произведения (scaled dot-product attention)</div>
+      <div class="eqtex">\[
+\htmlClass{kx-symSM}{\mathrm{softmax}}\!\Big(\tfrac{\htmlClass{kx-symQ}{Q}\,\htmlClass{kx-symKT}{K^{\top}}}{\htmlClass{kx-symDK}{\sqrt{d_k}}} \;+\; \htmlClass{kx-symM}{M}\Big)\,\htmlClass{kx-symV}{V}
+\qquad
+\htmlClass{kx-symSM}{\mathrm{softmax}}(x)_j=\frac{e^{x_j}}{\sum_i e^{x_i}}
+\]</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S3 КВАДРАТИЧНАЯ СЛОЖНОСТЬ ================= -->
+<section class="sec rv" id="s3">
+  <div class="wrap">
+    <div class="sec-no">03 / ОСНОВЫ</div>
+    <h2>Квадратичная сложность — точная формулировка</h2>
+    <p class="lead">Стоимость внимания нельзя выразить одним числом. Обучение, префилл (prefill, обработка входного контекста), декодирование и память KV-кэша масштабируются по-разному — именно смешение этих величин и вносит путаницу в обсуждение O(N²). Изменяйте длину последовательности и наблюдайте за каждой стоимостью отдельно.</p>
+    <figure class="fig" id="f3">
+      <div class="figbar"><span class="figtag">РИС. 03</span><span class="figname">СТОИМОСТЬ И ДЛИНА ПОСЛЕДОВАТЕЛЬНОСТИ N</span>
+        <div class="figctl"><label class="hint" for="f3slider">N = <span id="f3n">256</span></label>
+        <input type="range" id="f3slider" min="4" max="20" value="8"><button id="f3grow">Увеличивать N</button><button id="f3reset">Сбросить</button></div>
+      </div>
+      <div class="figbody" id="f3body"></div>
+      <figcaption><b>Слева</b>: матрица внимания при росте N (отображение с логарифмическим сжатием; фактический размер указан ниже). <b>Справа</b>: четыре отдельные составляющие стоимости. FlashAttention (2022) не материализует матрицу N×N и сокращает обмен с памятью, но сами <i>вычисления</i> N² оценок остаются.</figcaption>
+    </figure>
+    <div class="stats2">
+      <div class="stat"><b id="f3c1">—</b><span>ячеек оценок = N²</span></div>
+      <div class="stat"><b id="f3c2">—</b><span>пикселей матрицы при 18 px/ячейку</span></div>
+      <div class="stat"><b id="f3c3">—</b><span>экранов по ширине (1512 px)</span></div>
+    </div>
+    <div class="callout o"><span class="src">Четыре отдельные составляющие стоимости [ИСТОЧНИК]</span>
+      <b>Обучение</b> — до FlashAttention (2022) полные матрицы оценок N×N материализовались в памяти.<br>
+      <b>Префилл</b> — весь промпт обрабатывается сразу: O(N²) операций расчёта оценок на слой.<br>
+      <b>Декодирование</b> — каждый шаг читает весь KV-кэш: 2·N·D чтений + 2·D записей в память с высокой пропускной способностью (High Bandwidth Memory, HBM); узким местом служит пропускная способность памяти, а не производительность вычислений (FLOPS).<br>
+      <b>KV-кэш</b> — растёт как O(N) и при длинном контексте может стать узким местом из-за ограниченной пропускной способности памяти.
+    </div>
+  </div>
+</section>
+
+<!-- ================= S4 KV-КЭШ ================= -->
+<section class="sec rv" id="s4">
+  <div class="wrap">
+    <div class="sec-no">04 / ОСНОВЫ</div>
+    <h2>KV-кэш</h2>
+    <p class="lead">Без кэширования при добавлении каждого сгенерированного токена модель заново вычисляла бы проекции всех предыдущих токенов. Хранение их ключей и значений устраняет эту лишнюю работу — такое хранилище и называется KV-кэшем. Пройдите по шагам генерации и проследите за его ростом, а затем сравните с состоянием постоянного размера, которое вводит линейное внимание в §05.</p>
+    <figure class="fig" id="f4">
+      <div class="figbar"><span class="figtag">РИС. 04</span><span class="figname">АВТОРЕГРЕССИВНОЕ ДЕКОДИРОВАНИЕ</span>
+        <div class="figctl">
+          <div class="seg"><button id="f4modeA" class="on">KV-кэш полного внимания</button><button id="f4modeB">Рекуррентное состояние (KDA)</button></div>
+          <button id="f4prefill">Префилл</button><button id="f4step" class="c-attn">Декодировать токен</button><button id="f4reset">Сбросить</button>
+        </div>
+      </div>
+      <div class="figbody" id="f4body"></div>
+      <figcaption><b>Префилл</b> обрабатывает весь промпт за один проход; каждый <b>шаг декодирования</b> добавляет один столбец K и один столбец V. За шаг стандартный механизм внимания читает 2·N·D и записывает 2·D в HBM, а кэш растёт линейно — O(N) [ИСТОЧНИК]. Токены продолжения приведены для наглядности.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= S5 ЛИНЕЙНОЕ ВНИМАНИЕ ================= -->
+<section class="sec rv" id="s5">
+  <div class="wrap">
+    <div class="sec-no">05 / ЛИНЕЙНАЯ ПАМЯТЬ</div>
+    <h2>Перегруппировка вычислений в линейном внимании</h2>
+    <p class="lead">Softmax применяет нелинейность <i>после</i> произведения q·k, связывая каждый запрос с каждым ключом. Линейное внимание (linear attention) применяет отображение признаков к q и k <i>по отдельности</i>, поэтому произведение можно перегруппировать: вместо матрицы N×N ключи и значения сворачиваются в состояние фиксированного размера d×d.</p>
+    <figure class="fig" id="f5">
+      <div class="figbar"><span class="figtag">РИС. 05</span><span class="figname">ПЕРЕГРУППИРОВКА ВЫЧИСЛЕНИЙ: (QKᵀ)V → Q(KᵀV)</span>
+        <div class="figctl"><button id="f5reass" class="c-attn">Перегруппировать</button><button id="f5reset">Сбросить</button></div>
+      </div>
+      <div class="figbody" id="f5body"></div>
+      <figcaption>Нажмите <b>«Перегруппировать»</b>, чтобы увидеть, как матрица N×N заменяется вычислением через состояние d×d. Для уже выбранного ядра φ перегруппировка математически точна; отличие от softmax возникает при выборе другого ядра φ (см. ниже).</figcaption>
+    </figure>
+    <div class="eq v"><div class="cap">Линейное внимание с отображением признаков φ(x) = elu(x) + 1 [ИСТОЧНИК]</div>
+      <div class="eqtex">\[
+o_t=\frac{\htmlClass{kx-symPhi}{\phi(q_t)}^{\top}\big(\sum_{i\le t}\phi(k_i)\,v_i^{\top}\big)}{\phi(q_t)^{\top}\big(\sum_{i\le t}\phi(k_i)\big)}
+\]</div>
+    </div>
+    <div class="vs">
+      <div class="vpanel"><h4 class="ca">Что сохраняется</h4>
+        <p style="font-size:14px;color:var(--ink2)">Фиксированное состояние d×d для каждой головы: память при декодировании составляет O(1) на шаг, растущего KV-кэша нет. Сохраняются те же три шага внимания: сделать оценки неотрицательными, нормализовать их и взять взвешенное среднее значений.</p></div>
+      <div class="vsmid">↔</div>
+      <div class="vpanel"><h4 class="cm">Чем приходится поступиться</h4>
+        <p style="font-size:14px;color:var(--ink2)">ELU+1 задаёт <b>альтернативное, менее выразительное ядро</b>, а не универсально точное приближение softmax, поэтому качество зависит от архитектуры и задачи. А поскольку состояние только накапливается, ассоциации со временем начинают мешать друг другу (§06).</p></div>
+    </div>
+    <figure class="fig">
+      <div class="figbar"><span class="figtag">РИС. 05б</span><span class="figname">ДВУХЛОГИТНЫЙ SOFTMAX И ELU+1</span></div>
+      <div class="figbody" id="f5bbody"></div>
+      <figcaption>Синяя кривая — одномерное сечение softmax для двух логитов [x, 0], то есть sigmoid(x), а фиолетовая — точная функция ELU(x)+1. Softmax нормализует оценки совместно, тогда как в линейном внимании с ELU+1 нормализацию обеспечивает отдельный знаменатель φ(q)·z.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= S6 DELTANET ================= -->
+<section class="sec rv" id="s6">
+  <div class="wrap">
+    <div class="sec-no">06 / ЛИНЕЙНАЯ ПАМЯТЬ</div>
+    <h2>DeltaNet — запись только разницы</h2>
+    <p class="lead">У состояния фиксированного размера конечна ассоциативная ёмкость: по мере добавления записей растёт интерференция, и новые ассоциации всё сильнее мешают старым. Когда N намного больше размерности состояния, «бесконечное добавление новых ассоциаций в память конечного размера… неизбежно достигнет предела» (Schlag et al., <i>Linear Transformers Are Secretly Fast Weight Programmers</i> — «линейные трансформеры на самом деле являются программистами быстрых весов»). Решение DeltaNet: перед записью <b>прочитать, что уже хранится по этому ключу</b>, а затем записать только разницу — дельту.</p>
+    <figure class="fig" id="f6">
+      <div class="figbar"><span class="figtag">РИС. 06</span><span class="figname">ОБНОВЛЕНИЕ СОСТОЯНИЯ ПО ДЕЛЬТА-ПРАВИЛУ · ЖИВОЙ РАСЧЁТ</span>
+        <div class="figctl"><button id="f6prev">← Назад</button><button id="f6next" class="c-mem">Следующий токен →</button><button id="f6play">Запустить</button><button id="f6reset">Сбросить</button></div>
+      </div>
+      <div class="figbody">
+        <div id="f6toks" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:26px;align-items:start" id="f6grid">
+          <div id="f6state"></div>
+          <div id="f6math"></div>
+        </div>
+      </div>
+      <figcaption>Состояние S имеет размер d×d (здесь d = 4, k нормирован до единичной нормы, а β для наглядности зафиксирован на 0,85; на практике β вычисляется для каждого токена). В практикуме используется строковая запись: Sₜ = Sₜ₋₁ + kₜᵀβₜ(vₜ − kₜSₜ₋₁), oₜ = qₜSₜ. В уравнении ниже те же векторы записаны столбцами, поэтому новое внешнее произведение имеет вид βₜkₜvₜᵀ, а чтение — Sₜᵀqₜ.</figcaption>
+    </figure>
+    <div class="eq v"><div class="cap">Дельта-правило, репараметризованное для параллельных блоков [ИСТОЧНИК]</div>
+      <div class="eqtex">\[
+\htmlClass{kx-symS}{S_t}=\big(\htmlClass{kx-symI}{I}-\htmlClass{kx-symB}{\beta_t}\,\htmlClass{kx-symKt}{k_t}\htmlClass{kx-symKt}{k_t^{\top}}\big)\htmlClass{kx-symS}{S_{t-1}}+\htmlClass{kx-symB}{\beta_t}\,\htmlClass{kx-symKt}{k_t}\htmlClass{kx-symVt}{v_t^{\top}}
+\]</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S7 GATED DELTANET ================= -->
+<section class="sec rv" id="s7">
+  <div class="wrap">
+    <div class="sec-no">07 / ЛИНЕЙНАЯ ПАМЯТЬ</div>
+    <h2>Gated DeltaNet — учимся забывать</h2>
+    <p class="lead">Дельта-правило может перезаписать память, только когда есть конкретная замена; оно не умеет очищать сразу несколько ассоциаций при смене контекста или ослаблять память, освобождая ёмкость. Gated DeltaNet добавляет идею из Mamba-2: перед каждой дельта-записью к предыдущему состоянию применяется вентиль затухания α.</p>
+    <figure class="fig" id="f7">
+      <div class="figbar"><span class="figtag">РИС. 07</span><span class="figname">ВЕНТИЛЬНОЕ ОБНОВЛЕНИЕ: S ← α·S + kᵀu</span>
+        <div class="figctl"><label class="hint" for="f7slider">α = <span id="f7a">0.85</span></label>
+        <input type="range" id="f7slider" min="30" max="100" value="85"><button id="f7step" class="c-route">Шаг обновления</button></div>
+      </div>
+      <div class="figbody" id="f7body"></div>
+      <figcaption>Переходите по шагам и наблюдайте, как перед внесением дельты значения старых ячеек умножаются на α. При α = 1 вентиль отключён (чистый DeltaNet), а при α = 0 прежнее состояние полностью забывается перед записью. При равномерном затухании все компоненты состояния ослабевают одинаково — именно это ограничение устраняют поканальные вентили KDA в §08.</figcaption>
+    </figure>
+    <div class="vs">
+      <div class="vpanel"><h4 class="cm">DeltaNet (α = 1)</h4><div id="f7cmpA"></div>
+        <p class="note" id="f7cmpAn"></p></div>
+      <div class="vsmid">↔</div>
+      <div class="vpanel"><h4 class="cr">Gated DeltaNet (α = 0.75)</h4><div id="f7cmpB"></div>
+        <p class="note" id="f7cmpBn"></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S8 KDA ================= -->
+<section class="sec rv" id="s8">
+  <div class="wrap">
+    <div class="sec-no">08 / ВНИМАНИЕ KIMI</div>
+    <h2>Kimi Delta Attention — центральный механизм</h2>
+    <p class="lead">KDA — основа Kimi Linear: линейное внимание с дельта-правилом и вентилем, обеспечивающее <b style="color:var(--route)">тонко настраиваемое поканальное затухание</b>. Вместо одного скаляра α модель обучается формировать Diag(αₜ) — отдельное значение затухания для каждого канала состояния. Переключайте пути ниже, чтобы проследить прохождение блока токенов через механизм.</p>
+    <figure class="fig" id="f8">
+      <div class="figbar"><span class="figtag">РИС. 08</span><span class="figname">МОДУЛЬ KDA · ПУТИ ДАННЫХ</span>
+        <div class="figctl">
+          <button id="f8pA" class="c-attn on">Путь внимания</button>
+          <button id="f8pS" class="c-mem on">Путь состояния</button>
+          <button id="f8pG" class="c-route on">Вентили</button>
+          <div class="seg"><button id="f8mI" class="on">Наглядно</button><button id="f8mR">Подробно</button></div>
+        </div>
+      </div>
+      <div class="figbody">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px" class="hint">
+          <button id="f8zi" style="padding:3px 9px">+</button><button id="f8zo" style="padding:3px 9px">−</button><button id="f8zr" style="padding:3px 9px">сбросить</button>
+          <span>перетаскивание — сдвиг · ctrl+прокрутка — масштаб</span>
+        </div>
+        <div id="f8svgwrap" style="border:1px solid var(--line);border-radius:3px;background:var(--bg)"></div>
+      </div>
+      <figcaption>Синий — внимание внутри блока с учётом накопленного затухания Γ для C токенов. Фиолетовый — межблочное рекуррентное состояние S. Оранжевый — поканальные вентили Diag(αₜ). <b>Подробный режим</b> добавляет формы тензоров и точные уравнения обновления. Нажмите на кнопку пути, чтобы выделить его.</figcaption>
+    </figure>
+    <div class="eq o"><div class="cap">Обновление состояния KDA — тонко настраиваемое диагональное вентильное управление [ИСТОЧНИК: Kimi Linear, arXiv:2510.26692]</div>
+      <div class="eqtex">\[
+\htmlClass{kx-symS}{S_t}=\big(\htmlClass{kx-symI}{I}-\htmlClass{kx-symB}{\beta_t}\,\htmlClass{kx-symKt}{k_t}\htmlClass{kx-symKt}{k_t^{\top}}\big)\htmlClass{kx-symA}{\mathrm{Diag}(\alpha_t)}\;\htmlClass{kx-symS}{S_{t-1}}+\htmlClass{kx-symB}{\beta_t}\,\htmlClass{kx-symKt}{k_t}\htmlClass{kx-symVt}{v_t^{\top}}
+\]</div>
+    </div>
+    <div class="callout g"><span class="src">Опубликованные результаты [ИСТОЧНИК]</span>При одинаковой схеме обучения Kimi Linear (48 млрд параметров всего / 3 млрд активных, гибрид KDA:MLA 3:1) превосходит MLA с полным вниманием в проведённых оценках, уменьшает объём KV-кэша максимум на <b>75%</b> и повышает пропускную способность декодирования до <b>6 раз</b> при длине контекста 1 млн токенов.</div>
+  </div>
+</section>
+
+<!-- ================= S9 ГИБРИД ================= -->
+<section class="sec rv" id="s9">
+  <div class="wrap">
+    <div class="sec-no">09 / ВНИМАНИЕ KIMI</div>
+    <h2>Гибридное внимание — зачем несколько механизмов?</h2>
+    <p class="lead">Полное внимание адресно взвешивает все позиции, но платит за это растущим KV-кэшем; рекуррентные слои декодируют за O(1), но вынуждены сжимать информацию. Ответ Kimi — гибридный стек с повторяющимся соотношением 3 KDA : 1 MLA. В Kimi K3 в конце также добавлен отдельный слой Gated MLA. Соберите свой стек ниже и посмотрите, как меняется профиль памяти.</p>
+    <figure class="fig" id="f9">
+      <div class="figbar"><span class="figtag">РИС. 09</span><span class="figname">КОНСТРУКТОР СТЕКА СЛОЁВ</span>
+        <div class="figctl">
+          <button id="f9pK">Шаблон: Kimi 3:1</button><button id="f9pF">Шаблон: только полное внимание</button><button id="f9pL">Шаблон: только KDA</button>
+        </div>
+      </div>
+      <div class="figbody">
+        <div id="f9stack" style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px"></div>
+        <div class="note" style="margin-bottom:8px"><b>Память на один слой при декодировании: N = 8192, h = 16, d_h = 128, d_c = 512 [УЧЕБНЫЙ ПРИМЕР]</b> — нажмите на слой, чтобы сменить его тип.</div>
+        <div class="bars" id="f9bars"></div>
+      </div>
+      <figcaption>Базовый шаблон Kimi Linear и Kimi K3: 3 слоя KDA + 1 глобальный слой MLA [ИСТОЧНИК]. У Kimi K3 после 23 таких групп есть ещё один финальный Gated MLA. Полосы показывают число хранимых скалярных элементов на слой и пакет из одной последовательности: латентный кэш MLA растёт как N·d_c, а состояния KDA занимают h·d_h² и не зависят от N.</figcaption>
+    </figure>
+    <div class="vs">
+    <div class="vpanel"><h4 class="ca">Глобальное извлечение</h4><p style="font-size:14px;color:var(--ink2)">Слои MLA хранят сжатое представление каждого предыдущего токена, поэтому механизм softmax всё ещё может отдельно взвешивать каждую позицию контекста.</p></div>
+      <div class="vsmid">↔</div>
+      <div class="vpanel"><h4 class="cm">Эффективная рекуррентность</h4><p style="font-size:14px;color:var(--ink2)">Слои KDA переносят через всю последовательность состояние постоянного размера: декодирование O(1), кэш не растёт, но часть информации приходится вытеснять.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= S10 MLA ================= -->
+<section class="sec rv" id="s10">
+  <div class="wrap">
+    <div class="sec-no">10 / ВНИМАНИЕ KIMI</div>
+    <h2>Многоголовое латентное внимание — сжимаем кэш</h2>
+    <p class="lead">При длинном контексте именно KV-кэш начинает определять расход памяти. Многоголовое латентное внимание (Multi-head Latent Attention, MLA) проецирует скрытое состояние токена x в <b style="color:var(--latent)">общий компактный вектор cₜ = W<sub>c</sub>xₜ</b>. В кэше хранится cₜ, а ключи K и значения V восстанавливаются из него обучаемыми проекциями в исходную размерность (up-projections) во время внимания.</p>
+    <figure class="fig" id="f10">
+      <div class="figbar"><span class="figtag">РИС. 10</span><span class="figname">ПОЛНЫЙ KV-КЭШ И ЛАТЕНТНЫЙ КЭШ MLA</span>
+        <div class="figctl"><button id="f10c" class="c-latent">Сжать</button><button id="f10r">Сбросить</button></div>
+      </div>
+      <div class="figbody" id="f10body"></div>
+      <figcaption>Нажмите <b>«Сжать»</b>, чтобы сравнить объём обычного K/V и одной латентной строки cₜ на токен. Реальная операция начинается со скрытого состояния: cₜ = W<sub>c</sub>xₜ; затем матрицы W<sub>UK</sub> и W<sub>UV</sub> восстанавливают из cₜ ключи K и значения V. В Kimi K3 используется Gated MLA с полноранговым выходным вентилем [ИСТОЧНИК].</figcaption>
+    </figure>
+    <div class="figbar" style="border:none;background:transparent;padding:0 0 6px">
+      <label class="hint" for="f10slider">N = <span id="f10n">16 тыс.</span> токенов</label>
+      <input type="range" id="f10slider" min="10" max="20" value="14" style="width:200px">
+    </div>
+    <div class="bars" id="f10bars"></div>
+    <p class="note">d = 4096, d_c = 512 на токен [УЧЕБНЫЙ ПРИМЕР: условные соотношения]. Для Kimi Linear опубликованы уменьшение объёма KV-кэша максимум на <b>75%</b> и рост пропускной способности декодирования до 6 раз при контексте длиной 1 млн токенов [ИСТОЧНИК].</p>
+  </div>
+</section>
+
+<!-- ================= S11 MoE ================= -->
+<section class="sec rv" id="s11">
+  <div class="wrap">
+    <div class="sec-no">11 / МАСШТАБ И ГЛУБИНА</div>
+    <h2>Смесь экспертов — ёмкость без лишних вычислений</h2>
+    <p class="lead">Обучаемый маршрутизатор направляет каждый токен к нескольким экспертам, поэтому общая ёмкость модели может намного превышать объём вычислений на токен. В каждом MoE-слое модели Kimi K3 работают 898 экспертов: 2 общих для каждого токена и 896 маршрутизируемых, из которых для одного токена выбираются 16 [ИСТОЧНИК].</p>
+    <figure class="fig" id="f11">
+      <div class="figbar"><span class="figtag">РИС. 11</span><span class="figname">МАРШРУТИЗАТОР → TOP-K ЭКСПЕРТОВ (ПОКАЗАНО 8 ИЗ 896)</span>
+        <div class="figctl"><button id="f11play" class="c-route">Распределить токены</button><button id="f11reset">Сбросить</button></div>
+      </div>
+      <div class="figbody">
+        <div id="moeStage"></div>
+        <div class="bars" id="f11bars" style="margin-top:14px"></div>
+      </div>
+      <figcaption>Оценки маршрутизатора для каждого токена — фактически вычисляемые скалярные произведения с шестимерным вектором признаков; здесь показаны top-4 из 8 (в K3 — top-16 из 896) [числа — ИСТОЧНИК, размер демонстрации — УЧЕБНЫЙ ПРИМЕР]. Общие эксперты S1 и S2 получают каждый токен.</figcaption>
+    </figure>
+    <div class="eq o"><div class="cap">Разреженная маршрутизация — токен x активирует только своих top-k экспертов</div>
+      <div class="eqtex">\[
+y \;=\; \sum_{e \,\in\, \mathrm{top}\text{-}k}\;\htmlClass{kx-symGe}{g_e(x)}\;E_e(x)
+\qquad
+\text{K3: } k=16 \text{ из } 896 \text{ маршрутизируемых}
+\]</div>
+    </div>
+    <div class="stats2">
+      <div class="stat"><b>2,8 трлн</b><span>параметров всего [ИСТОЧНИК]</span></div>
+      <div class="stat"><b>≈104 млрд</b><span>активных параметров на токен [ИСТОЧНИК: публикации]</span></div>
+      <div class="stat"><b>898</b><span>экспертов в MoE-слое · 2 общих · 16 маршрутизируемых/токен</span></div>
+      <div class="stat"><b>≈3,7%</b><span>доля активных параметров: 104 млрд из 2,8 трлн</span></div>
+    </div>
+    <p class="body">Во время обучения маршрутизатор также должен балансировать нагрузку между экспертами, иначе несколько экспертов заберут большинство токенов, а остальная ёмкость будет простаивать. В Stable LatentMoE модели K3 два общих эксперта сохраняют путь полной ширины, а 896 маршрутизируемых экспертов работают в латентном пространстве шириной 3584 — вдвое уже скрытой размерности 7168. Это снижает вычисления и обмен данными маршрутизируемого пути [ИСТОЧНИК].</p>
+  </div>
+</section>
+
+<!-- ================= S12 AttnRes ================= -->
+<section class="sec rv" id="s12">
+  <div class="wrap">
+    <div class="sec-no">12 / МАСШТАБ И ГЛУБИНА</div>
+    <h2>Attention Residuals — внимание по глубине</h2>
+    <p class="lead">В стандартном остаточном потоке коэффициент каждого добавляемого выхода равен 1. Если для наглядности считать величины вкладов сопоставимыми, условная нормированная доля одного слоя уменьшается с глубиной. Метод Attention Residuals (AttnRes) позволяет каждому слою <b style="color:var(--res)">извлекать</b> нужное из предыдущих представлений вместо получения одной агрегированной суммы.</p>
+    <figure class="fig" id="f12">
+      <div class="figbar"><span class="figtag">РИС. 12</span><span class="figname">СТАНДАРТНЫЙ ОСТАТОЧНЫЙ ПОТОК И ATTENTION RESIDUALS</span>
+        <div class="figctl"><button id="f12reroll" class="c-res">Новый запрос</button></div>
+      </div>
+      <div class="figbody" id="f12body"></div>
+      <figcaption>Слева — учебный пример: если эмбеддинг и восемь выходов слоёв одинаковы по величине, условная нормированная доля каждого равна 1/9. В реальной стандартной остаточной связи их коэффициенты равны 1, но сами векторы различаются. Справа обучаемый запрос оценивает предыдущие представления, а веса softmax определяют, что прочитает текущий слой.</figcaption>
+    </figure>
+    <div class="vs">
+      <div class="eq g" style="margin:0"><div class="cap">Стандартный вариант [ИСТОЧНИК]</div>
+        <div class="eqtex">\[
+\htmlClass{kx-symHl}{h_l}=h_1+\sum_{i=1}^{l-1}f_i(h_i)
+\]</div>
+        <p class="note" style="margin-top:8px">Только сложение, без избирательного доступа: каждый слой получает собственную накопленную сумму, но не может отдельно выбрать прошлое представление.</p></div>
+      <div class="vsmid">→</div>
+      <div class="eq g" style="margin:0"><div class="cap">AttnRes [ИСТОЧНИК]</div>
+        <div class="eqtex">\[
+\htmlClass{kx-symHl}{h_l}=\htmlClass{kx-symAl}{\alpha_0}\,h_1+\sum_{i=1}^{l-1}\htmlClass{kx-symAl}{\alpha_i}\,f_i(h_i),
+\quad
+\alpha=\mathrm{softmax}(q\!\cdot\!k)
+\]</div>
+        <p class="note" style="margin-top:8px">Каждый αᵢ — нормированный вес softmax, полученный из оценки q·kᵢ для предыдущего остаточного состояния.</p></div>
+    </div>
+    <div class="callout g"><span class="src">Block AttnRes в Kimi K3 [ИСТОЧНИК]</span>93 слоя разделены на 8 блоков размером 12 слоёв, причём последний блок неполный, а эмбеддинг служит дополнительным источником. Внутри каждого слоя Block AttnRes применяет softmax-внимание к суммам завершённых блоков и к текущей частичной сумме. Так число хранимых представлений уменьшается с O(L) до O(числа блоков), сохраняя избирательный доступ по глубине.</div>
+  </div>
+</section>
+
+<!-- ================= S13 KIMI K3 ================= -->
+<section class="sec rv" id="s13">
+  <div class="wrap">
+    <div class="sec-no">13 / МАСШТАБ И ГЛУБИНА</div>
+    <h2>Архитектура Kimi K3</h2>
+    <p class="lead">Всё собрано вместе: 93 слоя внимания — 23 группы по три KDA и одному Gated MLA, затем финальный Gated MLA; Stable LatentMoE с полноширинными общими и латентными маршрутизируемыми экспертами; Block AttnRes с блоками по 12 слоёв; контекст длиной 1 млн токенов. Нажмите на компонент, чтобы открыть пояснение.</p>
+    <div class="stats2">
+      <div class="stat"><b>2,8 трлн</b><span>параметров всего</span></div>
+      <div class="stat"><b>93</b><span>слоя внимания: 69 KDA + 24 Gated MLA</span></div>
+      <div class="stat"><b>8</b><span>блоков AttnRes размером 12 слоёв; последний неполный</span></div>
+      <div class="stat"><b>898</b><span>экспертов в каждом MoE-слое · 16 маршрутизируемых + 2 общих/токен</span></div>
+      <div class="stat"><b>1 млн</b><span>токенов контекста</span></div>
+      <div class="stat"><b>~104 млрд</b><span>активных параметров/токен</span></div>
+    </div>
+    <figure class="fig" id="f13">
+      <div class="figbar"><span class="figtag">РИС. 13</span><span class="figname">KIMI K3 · ИНТЕРАКТИВНАЯ КАРТА</span>
+        <div class="figctl">
+          <div class="seg"><button id="f13mS" class="on">Упрощённо</button><button id="f13mT">Технически</button></div>
+          <button id="f13zo" style="padding:3px 9px">−</button><button id="f13zi" style="padding:3px 9px">+</button><button id="f13zr" style="padding:3px 9px">сбросить</button>
+        </div>
+      </div>
+      <div class="figbody">
+        <div style="display:grid;grid-template-columns:minmax(320px,1.4fr) minmax(230px,1fr);gap:22px;align-items:start">
+          <div id="f13svgwrap" style="border:1px solid var(--line);border-radius:3px;background:var(--bg)"></div>
+          <div id="f13detail" class="vpanel"><h4 class="ca">Описание компонента</h4><p style="font-size:13.5px;color:var(--ink2)" id="f13dtext">Нажмите на любой блок карты — KDA, MLA, MoE, AttnRes или LM-голову — чтобы узнать его назначение и перейти к подробному разделу.</p></div>
+        </div>
+      </div>
+      <figcaption>Каждая строка карты соответствует слою: механизм смешивания токенов KDA или Gated MLA сменяется собственной сетью прямого распространения (feed-forward network, FFN). Только слой 1 использует плотную FFN, остальные — Stable LatentMoE. Боковая шина Block AttnRes формирует вход каждого слоя из представлений предыдущих блоков по глубине сети.</figcaption>
+    </figure>
+    <div class="callout c"><span class="src">SiTU-GLU и Stable LatentMoE [ИСТОЧНИК]</span>SiTU-GLU заменяет SwiGLU. Вентильная ветвь равна β₁·tanh(W<sub>g</sub>x/β₁)·sigmoid(W<sub>g</sub>x), информационная — β₂·tanh(W<sub>u</sub>x/β₂), после чего ветви перемножаются поэлементно. В K3 β₁ = 4 и β₂ = 25 — фиксированные гиперпараметры. Маршрутизируемые эксперты работают в пространстве половинной ширины, а два общих — в полном.</div>
+  </div>
+</section>
+
+<!-- ================= S14 КАРТА ЭВОЛЮЦИИ ================= -->
+<section class="sec rv" id="s14">
+  <div class="wrap">
+    <div class="sec-no">14 / ИТОГИ</div>
+    <h2>Карта эволюции архитектуры</h2>
+    <p class="lead">Вся логика развития на одной карте. Каждый узел — очередное ограничение и решение, за которое пришлось заплатить. Это навигационная основа страницы: раскройте любой узел и перейдите к его разделу.</p>
+    <div id="evo"></div>
+  </div>
+</section>
+
+<!-- ================= S15 СЛОЖНОСТЬ ================= -->
+<section class="sec rv" id="s15">
+  <div class="wrap">
+    <div class="sec-no">15 / ИТОГИ</div>
+    <h2>Анализ сложности</h2>
+    <p class="lead">Асимптотика на одном графике — и её ограничения. Изменяйте N, сравнивайте вычисления и память разных механизмов, а затем выясните, почему оптимальный по FLOP размер блока не даёт минимального реального времени.</p>
+    <figure class="fig" id="f15">
+      <div class="figbar"><span class="figtag">РИС. 15</span><span class="figname">ВЫЧИСЛЕНИЯ И ПАМЯТЬ В ЗАВИСИМОСТИ ОТ N (ЛОГ–ЛОГ)</span>
+        <div class="figctl"><label class="hint" for="f15slider">N = <span id="f15n">4 096</span></label>
+        <input type="range" id="f15slider" min="8" max="20" value="12" style="width:190px"></div>
+      </div>
+      <div class="figbody">
+        <div id="f15legend" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="f15chartA"></div>
+        <div id="f15legendB" style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 12px"></div>
+        <div id="f15chartB"></div>
+        <div id="f15read" class="readout" style="margin-top:14px"></div>
+      </div>
+      <figcaption>Вычислительные кривые используют формулы из Kimi Linear для одной головы: полное внимание — 2N²d_h, KDA — 6Nd_h² + 3NCd_h + NC². Кривые памяти показывают число скалярных элементов в учебной модели с h = 16, L = 32 и d_c = 512. Проекции не учитываются. Асимптотика не равна реальной скорости GPU.</figcaption>
+    </figure>
+    <figure class="fig" id="f15b">
+      <div class="figbar"><span class="figtag">РИС. 15б</span><span class="figname">РАЗМЕР БЛОКА C — FLOP И ОПТИМУМ ДЛЯ GPU</span>
+        <div class="figctl"><label class="hint" for="f15cslider">C = <span id="f15c">64</span></label>
+        <input type="range" id="f15cslider" min="1" max="512" value="64"></div>
+      </div>
+      <div class="figbody" id="f15bbody"></div>
+      <figcaption>Для одной головы и последовательности длиной T теоретическая стоимость KDA равна 6Td_h² + 3TCd_h + TC² [ИСТОЧНИК: Kimi Linear, формула 13]. Если мысленно увеличить C до T, последняя часть станет квадратичной, но KDA не превратится в softmax-внимание. C = 64–128 хорошо соответствует ускоренным матричным операциям UMMA на GPU; минимум FLOP не обязательно даёт минимум времени.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= S16 ПРЕФИЛЛ / ДЕКОДИРОВАНИЕ ================= -->
+<section class="sec rv" id="s16">
+  <div class="wrap">
+    <div class="sec-no">16 / ИТОГИ</div>
+    <h2>Практикум: префилл и декодирование</h2>
+    <p class="lead">Префилл обрабатывает весь промпт сразу, а декодирование продвигается по одному токену, обращаясь к памяти выбранного механизма. Переключайте механизмы и фазы, чтобы увидеть, насколько по-разному ведёт себя одна и та же модель.</p>
+    <figure class="fig" id="f16">
+      <div class="figbar"><span class="figtag">РИС. 16</span><span class="figname">ВИЗУАЛИЗАЦИЯ МЕХАНИЗМОВ ВЫВОДА</span>
+        <div class="figctl">
+          <div class="seg"><button id="f16pre" class="on">Префилл</button><button id="f16dec">Декодирование</button></div>
+          <select id="f16mech">
+            <option value="std">Стандартный механизм внимания</option>
+            <option value="lin">Линейное внимание</option>
+            <option value="kda">DeltaNet / KDA</option>
+            <option value="mla">MLA</option>
+          </select>
+          <button id="f16step" class="c-attn">Шаг</button><button id="f16reset">Сбросить</button>
+        </div>
+      </div>
+      <div class="figbody"><div id="f16stage"></div><div class="readout" id="f16read" style="margin-top:12px"></div></div>
+      <figcaption id="f16cap"></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= S17 МАТЕМАТИЧЕСКИЙ ПРАКТИКУМ ================= -->
+<section class="sec rv" id="s17">
+  <div class="wrap">
+    <div class="sec-no">17 / ИТОГИ</div>
+    <h2>Математический практикум</h2>
+    <p class="lead">Ни одной формулы без вычисления. Оба практикума выполняют вычисления с конкретными значениями на небольших тензорах: переходите по шагам, наводите указатель на символы и смотрите, какую часть конвейера они обозначают.</p>
+    <figure class="fig" id="f17">
+      <div class="figbar"><span class="figtag">РИС. 17</span><span class="figname">ПОШАГОВОЕ ВЫЧИСЛЕНИЕ</span>
+        <div class="figctl">
+          <div class="seg"><button id="f17tA" class="on">Внимание с softmax</button><button id="f17tB">Дельта-правило</button></div>
+          <button id="f17prev">← Назад</button><button id="f17next" class="c-attn">Шаг →</button><button id="f17reset">Сбросить</button>
+        </div>
+      </div>
+      <div class="figbody">
+        <div id="f17pipe" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div id="f17mats" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start"></div>
+      </div>
+      <figcaption>Наведите указатель на любой символ в формулах выше (§02, §06), чтобы подсветить соответствующий этап здесь. Все числа вычисляются в реальном времени при d_k = 4: внимание — на воспроизводимом примере из 4 токенов, дельта-правило — на одном фиксированном шаге последовательности из §06.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= S18 СРАВНЕНИЯ ================= -->
+<section class="sec rv" id="s18">
+  <div class="wrap">
+    <div class="sec-no">18 / ИТОГИ</div>
+    <h2>До и после — семь выводов</h2>
+    <p class="lead">Каждое сравнение отвечает на четыре вопроса: что изменилось, зачем, что улучшилось и что стало сложнее.</p>
+    <figure class="fig" id="f18">
+      <div class="figbar"><span class="figtag">РИС. 18</span><span class="figname">СРАВНЕНИЕ АРХИТЕКТУР</span>
+        <div class="figctl" id="f18tabs"></div>
+      </div>
+      <div class="figbody" id="f18body"></div>
+    </figure>
+  </div>
+</section>
+
+<footer>
+  <div class="wide fs">
+    <div>
+      <h5>Статья</h5>
+      <ul>
+        <li><a href="./article.ru.md">Русский перевод статьи</a></li>
+        <li><a href="https://chatteronai.hashnode.dev/from-gpt-2-to-kimi-k3-the-journey-of-22-580-models-in-one?utm_source=hashnode&amp;utm_medium=feed" target="_blank" rel="noopener">Оригинальная статья на английском</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Основной источник</h5>
+      <ul>
+        <li><a href="https://x.com/waterloo_intern/status/2081762065392541951" target="_blank" rel="noopener">«От GPT-2 до Kimi K3: объяснение» — @waterloo_intern (технический разбор в X)</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Упомянутые научные работы</h5>
+      <ul>
+        <li><a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noopener">Kimi Linear — arXiv:2510.26692</a></li>
+        <li><a href="https://arxiv.org/abs/2412.06464" target="_blank" rel="noopener">Gated DeltaNet — arXiv:2412.06464</a></li>
+        <li><a href="https://proceedings.mlr.press/v139/schlag21a.html" target="_blank" rel="noopener">DeltaNet: Linear Transformers Are Secretly Fast Weight Programmers — ICML 2021</a></li>
+        <li><a href="https://arxiv.org/abs/2406.06484" target="_blank" rel="noopener">Параллелизация линейных трансформеров с помощью дельта-правила — arXiv:2406.06484</a></li>
+        <li><a href="https://arxiv.org/abs/2603.15031" target="_blank" rel="noopener">Attention Residuals — arXiv:2603.15031</a></li>
+        <li><a href="https://arxiv.org/abs/2607.24653" target="_blank" rel="noopener">Kimi K3: Open Frontier Intelligence — arXiv:2607.24653</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Как читать эту страницу</h5>
+      <ul>
+        <li><span class="tag src">ИСТОЧНИК</span> (SOURCE): факты взяты из технического разбора или научных работ</li>
+        <li><span class="tag sim">УЧЕБНЫЙ ПРИМЕР</span> (ILLUSTRATIVE): значения упрощены только для наглядности</li>
+        <li>Все матрицы, состояния и softmax вычисляются прямо в браузере</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wide disc">Независимая учебная визуализация, не связанная с исследовательскими лабораториями или авторами работ. Схемы и вычисления работают прямо в браузере; для загрузки шрифтов и KaTeX требуется доступ к CDN. Отслеживание и внешние наборы данных не используются.</div>
+  <div class="wide made">Сделано с <span class="heart">♥</span> — Ujjwal Balaji</div>
+</footer>
+
+</div><!-- /основное содержимое -->
+
+<script>
+(function(){
+"use strict";
+/* ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const NS='http://www.w3.org/2000/svg';
+function sv(n,at,parent){const e=document.createElementNS(NS,n);for(const k in at)e.setAttribute(k,at[k]);if(parent)parent.appendChild(e);return e}
+function div(cls,html){const e=document.createElement('div');if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function txt(g,x,y,s,at){const t=sv('text',Object.assign({x,y,'font-size':11,fill:'#C2C9DB'},at||{}),g);t.textContent=s;return t}
+const C={attn:'#5FA8FF',mem:'#A78BFA',route:'#F0933F',latent:'#38C6D6',res:'#46C288',ink:'#EDE7D9',ink3:'#97A1B8',line:'#3A4768',panel:'#141D38'};
+let arrowMarkerSeq=0;
+const arrowMarkerCache=new WeakMap();
+function rrect(g,x,y,w,h,fill,stroke,at){return sv('rect',Object.assign({x,y,width:w,height:h,rx:3,fill:fill||C.panel,stroke:stroke||C.line,'stroke-width':1},at||{}),g)}
+function box(g,x,y,w,h,l1,l2,col,at){
+  const r=rrect(g,x,y,w,h,'rgba(20,29,56,.9)',col||C.line,at);r.classList.add('svgbox');
+  txt(g,x+w/2,y+(l2?(h/2-8):h/2+3.5),l1,{'text-anchor':'middle','font-size':10.5,fill:C.ink});
+  if(l2)txt(g,x+w/2,y+h/2+10,l2,{'text-anchor':'middle','font-size':9,fill:col||C.ink3});
+  return r;
+}
+function arrow(g,x1,y1,x2,y2,col,dash,at){
+  const svg=g.ownerSVGElement,markerColor=col||C.ink3;
+  let markers=arrowMarkerCache.get(svg);
+  if(!markers){markers=new Map();arrowMarkerCache.set(svg,markers)}
+  let id=markers.get(markerColor);
+  if(id&&!svg.querySelector('#'+id)){markers.delete(markerColor);id=null}
+  if(!id){
+    id='ar'+(++arrowMarkerSeq);
+    const defs=$('defs[data-arrow-markers]',svg)||sv('defs',{'data-arrow-markers':''},svg);
+    const mk=sv('marker',{id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},defs);
+    sv('path',{d:'M0,0L10,5L0,10z',fill:markerColor},mk);
+    markers.set(markerColor,id);
+  }
+  const p=sv('path',Object.assign({d:`M${x1},${y1}L${x2},${y2}`,stroke:col||C.ink3,'stroke-width':1.4,fill:'none','marker-end':`url(#${id})`},at||{}),g);
+  if(dash)p.setAttribute('stroke-dasharray',dash);
+  return p;
+}
+function softmax(arr,masked){const mx=Math.max(...arr.map((v,i)=>masked&&masked[i]?-1e9:v));const ex=arr.map((v,i)=>masked&&masked[i]?0:Math.exp(v-mx));const s=ex.reduce((a,b)=>a+b,0);return ex.map(e=>s?e/s:0)}
+const fmt=(v)=>Math.abs(v)>=1000?v.toExponential(2):(+v.toFixed(2)).toString();
+function fmtBig(v){const n=(x,d)=>x.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});if(v>=1e12)return n(v/1e12,2)+' трлн';if(v>=1e9)return n(v/1e9,2)+' млрд';if(v>=1e6)return n(v/1e6,2)+' млн';if(v>=1e3)return n(v/1e3,1)+' тыс.';return Math.round(v)}
+function fmtCount(v){if(v>=1e6)return(v/1e6).toLocaleString('ru-RU',{maximumFractionDigits:1})+' млн';if(v>=1e3)return(v/1e3).toLocaleString('ru-RU',{maximumFractionDigits:1})+' тыс.';return v.toLocaleString('ru-RU')}
+function vecBars(v,col,hmax){const w=div('vgrid');const m=Math.max(...v.map(Math.abs),.001);v.forEach(x=>{const i=document.createElement('i');i.style.height=Math.max(2,Math.abs(x)/m*(hmax||30))+'px';i.style.background=col||C.attn;if(x<0)i.style.opacity=.45;w.appendChild(i)});return w}
+function miniGrid(mat,cell,opts){opts=opts||{};const d=div('mgrid');d.style.gridTemplateColumns=`repeat(${mat[0].length},${cell}px)`;const mx=Math.max(...mat.flat().map(Math.abs),.001);mat.forEach((row,i)=>row.forEach((v,j)=>{const c=div('mcell'+(opts.mask&&opts.mask[i][j]?' masked':''));c.style.width=cell+'px';c.style.height=cell+'px';const a=Math.min(1,Math.abs(v)/mx);c.style.background=`rgba(167,139,250,${(0.06+0.75*a).toFixed(3)})`;c.textContent=opts.nums?fmt(v):'';if(v<0)c.style.background=`rgba(240,147,63,${(0.06+0.75*a).toFixed(3)})`;c.title=fmt(v);d.appendChild(c)}));return d}
+
+/* ============ ПОДСКАЗКИ И ШИНА СИМВОЛОВ ============ */
+const tip=$('#tip');
+function showTip(t,d){tip.innerHTML=`<div class="tn">${d.n}</div><div class="ts">${d.s||''}</div><div>${d.d}</div>`;tip.style.opacity=1;const r=t.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(innerWidth-310,r.left))+'px';tip.style.top=(r.bottom+8+scrollY>scrollY+innerHeight-140?r.top-tip.offsetHeight-8:r.bottom+8)+'px';tip.style.position='fixed';}
+function hideTip(){tip.style.opacity=0}
+const SYMS={
+ 'kx-symQ':{n:'Q — запросы',s:'(N × d_k)',d:'По одному вектору запроса на токен: что ищет эта позиция. Создаётся из входного представления проекцией W_q.'},
+ 'kx-symK':{n:'K — ключи',s:'(N × d_k)',d:'По одному ключу на токен: «адрес», по которому он хранится. Сравнивается с каждым запросом.'},
+ 'kx-symKT':{n:'Kᵀ — транспонированные ключи',s:'(d_k × N)',d:'Q·Kᵀ одним матричным произведением сопоставляет каждый запрос с каждым ключом — это связь размера N×N.'},
+ 'kx-symDK':{n:'√d_k — масштабирование',s:'скаляр',d:'Деление на квадратный корень из размерности головы не даёт скалярным произведениям расти слишком быстро вместе с размерностью, поэтому softmax остаётся устойчивым.'},
+ 'kx-symM':{n:'M — каузальная маска',s:'(N × N), верхний треугольник −∞',d:'Не позволяет токену видеть будущие токены. Их оценки заменяются на −∞ перед softmax и становятся ровно нулевыми.'},
+ 'kx-symSM':{n:'softmax',s:'по строкам из N элементов',d:'Преобразует исходные оценки в положительные веса с суммой 1 для каждого запроса. Именно эта нелинейность связывает каждый запрос с каждым ключом.'},
+ 'kx-symV':{n:'V — значения',s:'(N × d_v)',d:'Содержимое, которое вносит каждый токен. На выходе получается взвешенное среднее значений.'},
+ 'kx-symS':{n:'S — состояние памяти',s:'(d × d) для каждой головы',d:'Рекуррентная ассоциативная память фиксированного размера. Она не растёт с длиной последовательности, поэтому её содержимым нужно управлять.'},
+ 'kx-symI':{n:'I — единичная матрица',s:'(d × d)',d:'Репараметризованная дельта-запись: (I − βkkᵀ)S удаляет β-долю того, что хранилось по ключу k, а затем добавляет β-долю новой ассоциации. Полная замена получается при β = 1.'},
+ 'kx-symB':{n:'β — сила записи',s:'один скаляр на токен',d:'Насколько сильно текущий токен записывается в память. Обучается по входу через сигмоидальный вентиль.'},
+ 'kx-symA':{n:'α — вентиль затухания',s:'скаляр (Gated DeltaNet) · поканальное затухание Diag(α) (KDA)',d:'Какая доля предыдущего состояния сохраняется на каждом шаге. Скалярное затухание единообразно, а KDA обучает отдельное затухание для каждого канала.'},
+ 'kx-symKt':{n:'k_t — ключ на шаге t',s:'(d,) · единичная норма',d:'Адрес чтения и записи для этого токена. При единичной норме и β = 1 чтение с q = k возвращает новое значение; при β < 1 — смесь прежнего и нового.'},
+ 'kx-symVt':{n:'v_t — значение на шаге t',s:'(d,)',d:'Содержимое, которое токен хочет связать со своим ключом.'},
+ 'kx-symPhi':{n:'φ — отображение признаков',s:'elu(x) + 1',d:'Применяется к q и k по отдельности, до их произведения. Благодаря этому вычисления внимания можно перегруппировать.'},
+ 'kx-symHl':{n:'h_l — остаточный поток',s:'(d,)',d:'Текущее представление. Стандартный вариант — сумма всего накопленного с равными весами; AttnRes — обученное взвешенное извлечение.'},
+ 'kx-symAl':{n:'α_i — веса извлечения',s:'softmax по слоям',d:'Оценки «запрос–ключ» для выходов предыдущих слоёв; они определяют, какие прошлые представления поступят в текущий слой.'},
+ 'kx-symGe':{n:'g_e(x) — вес маршрутизатора',s:'скаляр на эксперта',d:'Оценка эксперта e для токена x. Активируются только k экспертов с наивысшими оценками, а их выходы объединяются с весами g.'}
+};
+function attachSyms(){
+ $$('[class*="kx-sym"]').forEach(el=>{
+  const key=[...el.classList].find(c=>c.startsWith('kx-sym'));
+  const d=SYMS[key];if(!d||el._sym)return;el._sym=1;
+  el.addEventListener('mouseenter',()=>{showTip(el,d);document.dispatchEvent(new CustomEvent('sym',{detail:{key,on:true}}))});
+  el.addEventListener('mouseleave',()=>{hideTip();document.dispatchEvent(new CustomEvent('sym',{detail:{key,on:false}}))});
+ });
+}
+
+/* ============ НАВИГАЦИЯ И ПРОКРУТКА ============ */
+const prog=$('#progress');
+addEventListener('scroll',()=>{const h=document.documentElement;prog.style.width=(scrollY/(h.scrollHeight-innerHeight)*100)+'%'},{passive:true});
+ $('#menuBtn').onclick=()=>{$('#sidebar').classList.toggle('open')};
+const secs=$$('.sec'),links=$$('#nav a');
+links.forEach(link=>link.addEventListener('click',()=>$('#sidebar').classList.remove('open')));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('act',l.getAttribute('href')==='#'+e.target.id))}})},{rootMargin:'-30% 0px -60% 0px'});
+secs.forEach(s=>io.observe(s));
+const rvio=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rvio.unobserve(e.target)}})},{threshold:.06});
+ $$('.rv').forEach(e=>rvio.observe(e));
+
+/* Лента этапов */
+const JOUR=[['GPT-2','#s1',C.ink3],['Внимание с softmax','#s2',C.attn],['Линейное внимание','#s5',C.latent],['DeltaNet','#s6',C.mem],['Gated DeltaNet','#s7',C.route],['KDA','#s8',C.route],['MLA','#s10',C.latent],['MoE','#s11',C.route],['AttnRes','#s12',C.res],['Kimi K3','#s13',C.ink]];
+const jr=$('#journey');JOUR.forEach((j,i)=>{if(i)jr.appendChild(div('jarr','→'));const a=document.createElement('span');a.className='jchip';a.textContent=j[0];a.style.borderColor=j[2]+'55';a.onclick=()=>{document.querySelector(j[1]).scrollIntoView({behavior:RM?'auto':'smooth'});$('#sidebar').classList.remove('open')};jr.appendChild(a)});
+
+/* ============ ГЛАВНЫЙ ЭКРАН ============ */
+(function(){
+ const cv=$('#heroCv');if(!cv)return;const ctx=cv.getContext('2d');
+ let W=0,H=0,dpr=devicePixelRatio||1;
+ function fit(){const r=cv.parentElement.getBoundingClientRect();W=Math.floor(r.width);H=innerWidth<=640?260:innerWidth<=900?320:400;cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+ fit();addEventListener('resize',()=>{fit();if(RM)draw(0)});
+ const ERAS=[
+  {s:'GPT-2',y:'2019',b:'ВНИМАНИЕ С SOFTMAX + MLP',m:'kv',n:'124 млн параметров'},
+  {s:'Внимание',y:'',b:'QKᵀ → softmax → V',m:'kv',n:'каждый запрос × каждый ключ'},
+  {s:'Линейное внимание',y:'',b:'φ(q)·(φ(k)ᵀv)',m:'st',n:'фиксированное состояние D×D'},
+  {s:'DeltaNet',y:'',b:'S += kᵀ·β(v − kS)',m:'st',n:'запись только дельты'},
+  {s:'Gated DeltaNet',y:'2024',b:'S ← α·S + kᵀu',m:'st',n:'обучаемое забывание'},
+  {s:'KDA',y:'2025',b:'поканальное затухание Diag(α)',m:'st',n:'тонко настраиваемое затухание'},
+  {s:'MLA',y:'',b:'латентный KV-кэш',m:'lat',n:'KV-кэш −75%'},
+  {s:'MoE',y:'',b:'маршрутизатор → top-k экспертов',m:'st',n:'разреженная ёмкость'},
+  {s:'AttnRes',y:'',b:'внимание по слоям',m:'res',n:'вычисления эффективнее в 1,25 раза'},
+  {s:'Kimi K3',y:'2026',b:'69×KDA + 24×Gated MLA',m:'k3',n:'2,8 трлн параметров'}
+ ];
+ const chips=$('#eraChips');ERAS.forEach((e,i)=>{const c=div('hchip',`<b>${e.s}</b><i>${e.y||e.n}</i>`);c.onclick=()=>setEra(i);chips.appendChild(c)});
+ let era=0,t0=performance.now(),pause=false,blend=1,prevM=ERAS[0].m;
+ function setEra(i){era=(i+ERAS.length)%ERAS.length;prevM=(blend<1)?prevM:ERAS[(era+ERAS.length-1)%ERAS.length].m;blend=0;t0=performance.now();$$('.hchip').forEach((c,j)=>c.classList.toggle('on',j===era))}
+ setEra(0);
+ cv.parentElement.addEventListener('mouseenter',()=>pause=true);
+ cv.parentElement.addEventListener('mouseleave',()=>pause=false);
+ const parts=Array.from({length:22},(_,i)=>({x:i/22,y:Math.random(),v:.003+Math.random()*.004,s:Math.random()}));
+ const DUR=4400;
+ function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+ function draw(ts){
+  ctx.clearRect(0,0,W,H);
+  const narrow=W<560;
+  const py=H*0.34, col=era>=6?C.latent:era>=3?C.mem:C.attn;
+  // Конвейер
+  const labels=['ЭМБ.','БЛОК × N','LN','LM-ГОЛОВА'];
+  const bw=narrow?[W*.18,W*.30,W*.11,W*.25]:[110,180,52,100];
+  const pad=narrow?Math.max(4,W*.015):0;
+  const gap=narrow?(W-2*pad-bw.reduce((a,b)=>a+b,0))/3:0;
+  const bx=narrow?labels.map((label,i)=>[label,(pad+bw.slice(0,i).reduce((a,b)=>a+b,0)+gap*i)/W]):[['ЭМБЕДДИНГ',.13],['БЛОК × N',.34],['LN',.58],['LM-ГОЛОВА',.72]];
+  ctx.font=(narrow?'9px':'10px')+' JetBrains Mono';
+  bx.forEach((b,i)=>{
+    const x=W*b[1],w=bw[i];
+    const hot=i===1;
+    ctx.fillStyle=hot?'rgba(95,168,255,.10)':'rgba(20,29,56,.9)';
+    ctx.strokeStyle=hot?col:C.line;ctx.lineWidth=hot?1.6:1;
+    roundRect(x,py-26,w,52,4);ctx.fill();ctx.stroke();
+    ctx.fillStyle=hot?C.ink:C.ink3;ctx.textAlign='center';
+    if(hot){const l=(narrow?ERAS[era].s:ERAS[era].b).split(' · ');ctx.fillText(l[0],x+w/2,py-4);if(l[1])ctx.fillText(l[1],x+w/2,py+10);}
+    else ctx.fillText(b[0],x+w/2,py+3);
+    if(i<bx.length-1){ctx.strokeStyle=C.ink3;ctx.beginPath();ctx.moveTo(x+w+4,py);ctx.lineTo(W*bx[i+1][1]-5,py);ctx.stroke();ctx.fillStyle=C.ink3;ctx.beginPath();ctx.moveTo(W*bx[i+1][1]-5,py-4);ctx.lineTo(W*bx[i+1][1]-5,py+4);ctx.lineTo(W*bx[i+1][1]+2,py);ctx.fill()}
+  });
+  // Подписи очереди токенов и следующего токена
+  ctx.textAlign='left';ctx.fillStyle=C.ink3;ctx.fillText('ТОКЕНЫ',W*.02,py-34);
+  ctx.textAlign='right';ctx.fillText('СЛЕДУЮЩИЙ ТОКЕН',W*.97,py-34);
+  // Частицы
+  if(!RM)parts.forEach(p=>{p.x+=p.v;if(p.x>1)p.x-=1;const x=W*.03+p.x*W*.93,y=py+(p.y-.5)*14;
+    ctx.fillStyle='rgba(148,168,214,.55)';roundRect(x,y-4,20,8,2);ctx.fill();
+    if(p.x>.32&&p.x<.62){ctx.fillStyle=col+'99';roundRect(x,y-4,20,8,2);ctx.fill()}
+  });
+  // Линия памяти
+  const my=H*(narrow?.64:.72);ctx.textAlign='left';ctx.font=(narrow?'8.5px':'9.5px')+' JetBrains Mono';ctx.fillStyle=C.ink3;ctx.fillText('ПАМЯТЬ',W*.02,my-40);
+  ctx.strokeStyle=C.line;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(W*.03,my-30);ctx.lineTo(W*.97,my-30);ctx.stroke();ctx.setLineDash([]);
+  const target=ERAS[era].m;blend=Math.min(1,blend+0.02);
+  const drawKV=a=>{ctx.globalAlpha=a;const n=Math.floor((ts/260)%26);for(let i=0;i<Math.min(n,26);i++){ctx.fillStyle=i===Math.min(n,26)-1?C.attn:'rgba(95,168,255,.35)';const x=W*.05+i*((W*.86)/26);roundRect(x,my-18,(W*.86)/26-4,16,2);ctx.fill()}ctx.globalAlpha=1};
+  const drawST=a=>{ctx.globalAlpha=a;const g=3,cw=26;for(let i=0;i<g;i++)for(let j=0;j<g;j++){ctx.fillStyle='rgba(167,139,250,.4)';const pu=RM?0:Math.sin(ts/500+i+j)*2;roundRect(W*.05+i*(cw+5),my-16+j*(14)+pu*.2,cw,12,2);ctx.fill()}ctx.strokeStyle=C.mem;ctx.strokeRect(W*.05-4,my-20,g*(cw+5)+3,g*14+8);if(!(narrow&&target==='k3')){ctx.fillStyle=C.mem;ctx.fillText('S: d×d — фиксированный размер',W*.05+g*(cw+5)+14,my+2)}ctx.globalAlpha=1};
+  const drawLAT=a=>{ctx.globalAlpha=a;for(let i=0;i<4;i++){ctx.fillStyle='rgba(56,198,214,.45)';roundRect(W*.05+i*34,my-16,28,14,2);ctx.fill()}ctx.fillStyle=C.latent;ctx.fillText('латентный вектор cₜ на токен',W*.05+150,my-4);ctx.globalAlpha=1};
+  const drawRES=a=>{ctx.globalAlpha=a;for(let i=0;i<5;i++){ctx.fillStyle='rgba(70,194,136,.4)';roundRect(W*.05+i*40,my-14,32,12,2);ctx.fill()}ctx.fillStyle=C.res;ctx.fillText('выходы предыдущих слоёв',narrow?W*.05:W*.05+216,narrow?my+18:my-4);ctx.globalAlpha=1};
+  const drawK3=a=>{ctx.globalAlpha=a;drawST(a*.8);ctx.globalAlpha=a;ctx.fillStyle='rgba(56,198,214,.5)';roundRect(W*.45,my-16,28,14,2);ctx.fill();for(let i=0;i<3;i++){ctx.fillStyle='rgba(240,147,63,.6)';ctx.beginPath();ctx.arc(W*.62+i*18,my-8,5,0,7);ctx.fill()}ctx.fillStyle=C.ink2;ctx.fillText(narrow?'S + латентное представление + эксперты':'состояние + латентное представление + эксперты',narrow?W*.05:W*.67,narrow?my+45:my-4);ctx.globalAlpha=1};
+  const drawers={kv:drawKV,st:drawST,lat:drawLAT,res:drawRES,k3:drawK3};
+  if(blend<1&&drawers[prevM]!==drawers[target]){drawers[prevM](1-blend);drawers[target](blend)}else drawers[target](1);
+  // Подпись эпохи
+  ctx.font='700 15px Space Grotesk';ctx.fillStyle=C.ink;ctx.textAlign='left';
+  ctx.fillText(ERAS[era].s+(ERAS[era].y?'  ·  '+ERAS[era].y:''),W*.05,H-16);
+  ctx.font='10px JetBrains Mono';ctx.fillStyle=C.ink3;ctx.textAlign='right';
+  ctx.fillText(ERAS[era].n,W*.95,H-16);
+ }
+ if(RM){setEra(9);blend=1;draw(0);$$('.hchip').forEach((c,i)=>{c.onclick=()=>{setEra(i);blend=1;draw(0)}});return}
+ (function loop(ts){
+  if(!pause&&ts-t0>DUR)setEra(era+1);
+  const ac=chips.children[era];if(ac)ac.style.setProperty('--p',Math.min(100,(ts-t0)/DUR*100)+'%');
+  draw(ts);requestAnimationFrame(loop);
+ })(performance.now());
+})();
+
+/* ============ S1: КОНВЕЙЕР GPT-2 ============ */
+(function(){
+ const root=$('#f1body');if(!root)return;
+ let open=false,tech=false;
+ const s=sv('svg',{viewBox:'0 0 1060 '+(open?560:340)});
+ root.appendChild(s);
+ function build(){
+  s.innerHTML='';s.setAttribute('viewBox','0 0 1060 '+(open?560:340));
+  const g=sv('g',{},s);
+  // Токены
+  box(g,20,40,86,60,'ТОКЕНЫ','b × t',C.ink3);
+  const tks=['кот','сидел','на','ковре'];
+  tks.forEach((t,i)=>txt(g,118,52+i*13,t,{'font-size':8.5,fill:C.ink3}));
+  arrow(g,106,70,146,70);
+  box(g,148,20,96,54,'WTE','эмбеддинг токена (768)',C.attn);
+  box(g,148,86,96,54,'WPE','эмбеддинг позиции (768)',C.attn);
+  const plus=txt(g,262,68,'+',{'font-size':16,fill:C.ink});
+  arrow(g,244,47,268,60);arrow(g,244,113,268,78);
+  // Пример вектора эмбеддинга
+  if(tech){const eg=sv('g',{},g);for(let i=0;i<8;i++){sv('rect',{x:274,y:34+i*8,width:20+((i*37)%46),height:5,rx:1,fill:'rgba(95,168,255,.45)'},eg)}txt(g,274,120,'x[0] — 768-мерный вектор одного токена (показано 8 измерений)',{'font-size':8,fill:C.ink3})}
+  // Интерактивный блок трансформера
+  const blkX=290,blkY=132,blkW=open?336:300,blkH=open?352:110;
+  const blk=box(g,blkX,blkY,blkW,blkH,'','',C.attn,{'stroke-width':1.5});
+  if(!open){txt(g,blkX+blkW/2,blkY+blkH/2+3,'БЛОК ТРАНСФОРМЕРА ×12',{'text-anchor':'middle','font-size':11,fill:C.attn})}
+  else{
+    // Развёрнутое внутреннее устройство
+    const ix=blkX+16;
+    const y=blkY+24;
+    const rows=[
+      ['x (b,t,768)',null,C.ink3,0],
+      ['LN_1',null,C.ink3,30],
+      ['КАУЗАЛЬНОЕ САМОВНИМАНИЕ','12 голов × 64',C.attn,60],
+      ['⊕ остаточная связь',null,C.res,90],
+      ['LN_2',null,C.ink3,120],
+      ['MLP','768 → 3072 → 768',C.mem,150],
+      ['⊕ остаточная связь',null,C.res,180],
+      ['x′ (b,t,768)',null,C.ink3,210]
+    ];
+    rows.forEach(r=>{if(r[3])arrow(g,ix+90,y+r[3]-8,ix+90,y+r[3]-2)});
+    // Внутренний поток
+    const sx=ix+70;
+    arrow(g,sx,blkY+24,sx,blkY+228);
+    rows.forEach((r,i)=>{const ry=blkY+24+i*30;
+      if(r[1]===null&&r[0].startsWith('x'))txt(g,sx,ry+4,r[0],{'text-anchor':'middle','font-size':9,fill:C.ink3});
+      else{box(g,sx-86,ry-10,172,20,r[0],r[1],r[2]);}
+    });
+    // Боковые стрелки остаточных связей
+    arrow(g,sx+90,blkY+38,sx+146,blkY+38,C.res,'4 3');arrow(g,sx+146,blkY+38,sx+146,blkY+90,C.res,'4 3');arrow(g,sx+146,blkY+90,sx+92,blkY+90,C.res,'4 3');
+    arrow(g,sx+90,blkY+128,sx+146,blkY+128,C.res,'4 3');arrow(g,sx+146,blkY+128,sx+146,blkY+184,C.res,'4 3');arrow(g,sx+146,blkY+184,sx+92,blkY+184,C.res,'4 3');
+    // Дуги внимания
+    const ag=sv('g',{},g);
+    for(let i=0;i<4;i++)for(let j=0;j<=i;j++){sv('path',{d:`M${blkX+blkW-104+i*24},${blkY+242} q0,-30 -${(i-j)*24*0.6+4},${i===j?0:34}`,stroke:'rgba(95,168,255,.5)',fill:'none','stroke-width':1},ag)}
+    txt(g,blkX+blkW-120,blkY+286,'каждая позиция обращает внимание на предыдущие',{'font-size':8,fill:C.ink3});
+    if(tech){txt(g,blkX+16,blkY+318,'внимание: y = softmax(q·kᵀ/√64 + M)·v — для одной головы; 12 голов работают параллельно',{'font-size':8.2,fill:C.ink3});txt(g,blkX+16,blkY+334,'MLP: gelu(x·W1)·W2 · W1 ∈ ℝ⁷⁶⁸ˣ³⁰⁷², W2 ∈ ℝ³⁰⁷²ˣ⁷⁶⁸',{'font-size':8.2,fill:C.ink3})}
+  }
+  arrow(g,268,70,blkX,blkY+(open?34:55));
+  arrow(g,blkX+blkW,blkY+(open?34:55),blkX+blkW+42,blkY+(open?34:55));
+  box(g,blkX+blkW+44,blkY-16,72,42,'LN_f','',C.ink3);
+  arrow(g,blkX+blkW+116,blkY+5,blkX+blkW+150,blkY+5);
+  box(g,blkX+blkW+152,blkY-16,110,42,'LM-ГОЛОВА','словарь 50 304',C.mem);
+  // Логиты
+  const lg=sv('g',{},g);for(let i=0;i<9;i++){sv('rect',{x:blkX+blkW+280,y:blkY-14+i*6,width:14+((i*53)%58),height:4,rx:1,fill:'rgba(167,139,250,.5)'},lg)}
+  txt(g,blkX+blkW+280,blkY+58,'логиты (b, 50 304)',{'font-size':8,fill:C.ink3});
+  arrow(g,blkX+blkW+262,blkY+5,blkX+blkW+276,blkY+5);
+  box(g,blkX+blkW+250,blkY+96,180,40,'ВЫБОР ТОКЕНА','выборка (sampling) / argmax','#D9A441');
+  arrow(g,blkX+blkW+340,blkY+62,blkX+blkW+340,blkY+92);
+  box(g,blkX+blkW+280,blkY+170,120,40,'СЛЕДУЮЩИЙ ТОКЕН','',C.res);
+  arrow(g,blkX+blkW+340,blkY+140,blkX+blkW+340,blkY+166);
+  // Примечание о цикле декодирования
+  txt(g,30,open?512:300,'авторегрессия: предсказанный токен добавляется, и цикл повторяется —',{'font-size':9,fill:C.ink3});
+  txt(g,30,open?526:314,'но на каждом шаге используются логиты только ПОСЛЕДНЕЙ позиции',{'font-size':9,fill:'#D9A441'});
+  blk.style.cursor='pointer';
+  blk.addEventListener('click',()=>{open=!open;$('#f1toggle').textContent=open?'Свернуть блок трансформера':'Развернуть блок трансформера';build()});
+ }
+ build();
+ $('#f1toggle').onclick=()=>{open=!open;$('#f1toggle').textContent=open?'Свернуть блок трансформера':'Развернуть блок трансформера';build()};
+ $('#f1mode').onclick=()=>{tech=!tech;$('#f1mode').textContent='Технический режим: '+(tech?'вкл.':'выкл.');build()};
+})();
+
+/* ============ S2: МАТРИЦА ВНИМАНИЯ ============ */
+const F2={};
+(function(){
+ const wrap=$('#f2matWrap');if(!wrap)return;
+ const WORDS=['эта','модель','читает','каждый','токен','но','использует','один','логит','чтобы','выбрать','следующий'];
+ const DK=8;
+ function tokVec(i,dim,seed){const r=mulberry32(seed+i*131);return Array.from({length:dim},()=>r()*2-1)}
+ let N=6,mask=true,pinned=0,hoverI=null;
+ function vecs(i){return{q:tokVec(i,DK,11),k:tokVec(i,DK,29),v:tokVec(i,DK,53)}}
+ function compute(){
+  const Q=[],K=[],V=[];
+  for(let i=0;i<N;i++){const t=vecs(i);Q.push(t.q);K.push(t.k);V.push(t.v)}
+  const W=[];
+  for(let i=0;i<N;i++){
+    const sc=Array.from({length:N},(_,j)=>{let d=0;for(let z=0;z<DK;z++)d+=Q[i][z]*K[j][z];return d/Math.sqrt(DK)});
+    const mk=sc.map((_,j)=>mask?j>i:false);
+    W.push(softmax(sc,mk));
+  }
+  return{Q,K,V,W};
+ }
+ function render(){
+  const{Q,K,V,W}=compute();
+  wrap.innerHTML='';
+  const lab=div('mgrid');lab.style.gridTemplateColumns=`70px repeat(${N},1fr)`;lab.style.marginLeft='0';
+  const hdr=div('mlab','ключи →');hdr.style.fontSize='8.5px';hdr.style.color=C.ink3;lab.appendChild(hdr);
+  WORDS.slice(0,N).forEach(w=>{const c=div('mlab',w);c.style.fontSize='9px';lab.appendChild(c)});
+  wrap.appendChild(lab);
+  const g=div('mgrid');g.style.gridTemplateColumns=`70px repeat(${N},1fr)`;
+  W.forEach((row,i)=>{
+    const rl=div('mlab',WORDS[i]);rl.style.fontSize='9px';rl.style.cursor='pointer';rl.style.color=(hoverI===i||pinned===i)?C.attn:C.ink2;
+    rl.onmouseenter=()=>{hoverI=i;paint()};rl.onclick=()=>{pinned=i;render()};g.appendChild(rl);
+    row.forEach((w,j)=>{
+      const c=div('mcell'+(mask&&j>i?' masked':''));
+      c.style.width='100%';c.style.maxWidth='38px';c.style.height='26px';
+      if(!(mask&&j>i))c.style.background=`rgba(95,168,255,${(0.04+w*0.85).toFixed(3)})`;
+      c.textContent=w>0.03?w.toFixed(2).slice(1):'';
+      c.dataset.i=i;
+      c.onmouseenter=()=>{hoverI=i;paint()};c.onclick=()=>{pinned=i;render()};
+      g.appendChild(c);
+    });
+  });
+  wrap.appendChild(g);
+  F2.data={Q,K,V,W};
+  function paint(){
+    const i=hoverI!=null?hoverI:pinned;
+    $$('.mcell',g).forEach(c=>c.classList.toggle('rowhl',+c.dataset.i===i));
+    $$('.mlab',lab).forEach((l,j)=>l.style.color=(j-1>=0&&j-1===i)?C.attn:'');
+    $$('.mlab',g).forEach((l,j)=>l.style.color=(j===i)?C.attn:'');
+    panel(i);
+  }
+  paint();
+  function panel(i){
+    const p=$('#f2panel');p.innerHTML='';
+    const{Q,K,V,W}=F2.data;
+    const row=W[i];
+    p.appendChild(div('hint','РАЗБОР ТОКЕНА — «'+WORDS[i]+'» (позиция '+i+')'));
+    const qh=div('note','<b>запрос</b> q['+i+'] — что ищет этот токен');p.appendChild(qh);
+    p.appendChild(vecBars(Q[i],C.attn,32));
+    const kh=div('note','<b>видимые ключи</b> '+(mask?'(j ≤ '+i+')':'(все позиции: маска отключена)')+' · длина полосы и число показывают итоговый вес после softmax');p.appendChild(kh);
+    const rows=div('bars');rows.style.marginTop='4px';
+    for(let j=0;j<N;j++){
+      if(mask&&j>i)continue;
+      const r=div('brow');
+      r.innerHTML=`<span style="color:${j===i?C.attn:'var(--ink2)'}">${WORDS[j]}</span>`;
+      const tr=div('trk');const fl=div('fl');fl.style.width=(row[j]*100)+'%';fl.style.background=C.attn;tr.appendChild(fl);r.appendChild(tr);
+      r.appendChild(div('',row[j].toFixed(3)));
+      rows.appendChild(r);
+    }
+    p.appendChild(rows);
+    const oh=div('note','<b>выход</b> o['+i+'] = Σ wⱼ·vⱼ — полученная взвешенная смесь значений');p.appendChild(oh);
+    const o=Array.from({length:DK},(_,z)=>row.reduce((a,w,j)=>a+w*V[j][z],0));
+    p.appendChild(vecBars(o,'#8FC0FF',32));
+    if(!mask)p.appendChild(div('note','<span style="color:var(--amber)">маска отключена — запрос видит будущие токены, что недопустимо при авторегрессивной генерации</span>'));
+  }
+  F2.paintExtern=i=>{panel(i)};
+ }
+ F2.render=render;
+ $('#f2slider').oninput=e=>{N=+e.target.value;$('#f2n').textContent=N;pinned=Math.min(pinned,N-1);render()};
+ $('#f2mask').onclick=()=>{mask=!mask;$('#f2mask').textContent='Каузальная маска: '+(mask?'ВКЛ.':'ВЫКЛ.');$('#f2mask').classList.toggle('on',mask);render()};
+ render();
+ document.addEventListener('sym',e=>{
+  const{key,on}=e.detail;
+  const map={'kx-symQ':()=>F2.paintExtern(pinned),'kx-symK':()=>F2.paintExtern(pinned),'kx-symV':()=>F2.paintExtern(pinned)};
+  if(map[key]&&on)map[key]();
+  if(key==='kx-symM'){$$('#f2matWrap .mcell.masked').forEach(c=>c.classList.toggle('lit',on));}
+ });
+})();
+
+/* ============ S3: КВАДРАТИЧНАЯ СЛОЖНОСТЬ ============ */
+(function(){
+ const body=$('#f3body');if(!body)return;
+ let N=256;
+ const s=sv('svg',{viewBox:'0 0 860 300'});body.appendChild(s);
+ const g=sv('g',{},s);
+ function render(){
+  g.innerHTML='';
+  const disp=Math.min(14,Math.max(6,Math.round(Math.log2(N))));
+  const size=30+disp*15;
+  const sq=sv('rect',{x:30,y:54,width:size,height:size,fill:'rgba(95,168,255,.18)',stroke:C.attn,'stroke-width':1.5},g);
+  // Нижний левый треугольник — доступные позиции каузальной матрицы
+  const step=size/Math.min(10,Math.round(Math.log2(N)-2));
+  const clip=sv('path',{d:`M30,54 L30,${54+size} L${30+size},${54+size} Z`,fill:'rgba(95,168,255,.28)'},g);
+  txt(g,30,40,'Матрица внимания N × N (логарифмически сжатый вид)',{'font-size':9,fill:C.ink3});
+  txt(g,30+size+12,58,'фактическая длина стороны при размере ячейки 18 px:',{'font-size':9,fill:C.ink3});
+  txt(g,30+size+12,74,(N*18).toLocaleString('ru-RU')+' px',{'font-size':13,fill:C.attn,'font-weight':700});
+  txt(g,30+size+12,92,'= '+(N*18/1512).toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1})+' экрана ноутбука по ширине',{'font-size':9,fill:'#D9A441'});
+  // Отдельные составляющие стоимости
+  const cx=430;
+  const costs=[
+   ['ОБУЧЕНИЕ','до FlashAttention (2022) матрица N×N материализовалась целиком; FlashAttention вычисляет точное внимание без её полного хранения и эффективно организует обмен с памятью',C.attn],
+   ['ПРЕФИЛЛ','весь промпт за один проход: O(N²) вычислений оценок на слой',C.attn],
+   ['ДЕКОДИРОВАНИЕ','на шаг: 2·N·D чтений + 2·D записей в HBM — предел задаёт пропускная способность',C.mem],
+   ['KV-КЭШ','растёт как O(N) — при длинном контексте становится узким местом по пропускной способности памяти',C.mem]
+  ];
+  costs.forEach((c,i)=>{const y=30+i*64;
+    rrect(g,cx,y,410,60,'rgba(20,29,56,.9)',c[2],{'stroke-width':1});
+    txt(g,cx+14,y+18,c[0],{'font-size':10.5,fill:c[2],'font-weight':700});
+    const t=sv('text',{x:cx+14,y:y+34,'font-size':8.7,fill:C.ink3},g);
+    const words=c[1].split(' ');const lines=[];let ln='';
+    words.forEach(w=>{if((ln+w).length>60){lines.push(ln.trim());ln=''}ln+=w+' '});
+    if(ln.trim())lines.push(ln.trim());
+    lines.forEach((l,li)=>{const ts=sv('tspan',{x:cx+14,dy:li?11:0},t);ts.textContent=l});
+  });
+  $('#f3c1').textContent=(N*N).toLocaleString('ru-RU');
+  $('#f3c2').textContent=fmtBig((N*18)**2)+' пикс.';
+  $('#f3c3').textContent=((N*18)/1512).toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1})+' экрана';
+ }
+ render();
+ $('#f3slider').oninput=e=>{N=2**+e.target.value;$('#f3n').textContent=fmtCount(N);render()};
+ let iv=null;
+ $('#f3grow').onclick=()=>{
+  if(iv){clearInterval(iv);iv=null;$('#f3grow').textContent='Увеличивать N';return}
+  $('#f3grow').textContent='Остановить';
+  iv=setInterval(()=>{const p=Math.log2(N);if(p>=20){clearInterval(iv);iv=null;$('#f3grow').textContent='Увеличивать N';return}N=2**(p+1);$('#f3slider').value=p+1;$('#f3n').textContent=fmtCount(N);render()},700);
+ };
+ $('#f3reset').onclick=()=>{if(iv){clearInterval(iv);iv=null}$('#f3grow').textContent='Увеличивать N';N=256;$('#f3slider').value=8;$('#f3n').textContent='256';render()};
+})();
+
+/* ============ S4: KV-КЭШ ============ */
+(function(){
+ const body=$('#f4body');if(!body)return;
+ const PROMPT=['модель','читает','каждый','входной','токен',','],GEN=['но','использует','только','последний','логит','.'];
+ let mode='kv',gen=0; // gen — число сгенерированных токенов
+ function tokens(){return PROMPT.concat(GEN.slice(0,gen))}
+ function render(){
+  body.innerHTML='';
+  const toks=tokens();
+  const strip=div('');strip.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center';
+  const pl=div('hint','ПРОМПТ');pl.style.marginRight='4px';strip.appendChild(pl);
+  toks.forEach((t,i)=>{
+    const c=document.createElement('span');c.className='chip'+(i>=PROMPT.length?' gen cur':' done');
+    if(i>=PROMPT.length&&i<toks.length-1)c.classList.remove('cur');
+    strip.appendChild(c);c.textContent=t;
+    if(i===PROMPT.length-1){const d=div('hint','СГЕНЕРИРОВАНО');d.style.margin='0 4px 0 12px';strip.appendChild(d)}
+  });
+  body.appendChild(strip);
+  if(mode==='kv'){
+   const lab=div('note','<b>KV-кэш</b> (на слой · по одному столбцу K и V на токен) — 2·N·D чтений и 2·D записей на шаг декодирования');
+   body.appendChild(lab);
+   const rows=[['K',C.attn],['V','#8FC0FF']];
+   rows.forEach(rw=>{
+    const row=div('');row.style.cssText='display:flex;gap:3px;margin:5px 0 14px;flex-wrap:wrap';
+    const l=div('mlab',rw[0]);l.style.cssText='width:22px;font-size:11px;color:'+rw[1];row.appendChild(l);
+    toks.forEach((t,i)=>{const c=div('pop','t'+i);c.style.cssText=`width:44px;height:30px;border:1px solid ${rw[1]}66;border-radius:3px;background:${rw[1]}22;display:flex;align-items:center;justify-content:center;font-size:9px;color:${rw[1]};font-family:var(--f-mono)`;row.appendChild(c)});
+    body.appendChild(row);
+   });
+   body.appendChild(div('readout',`размер кэша: <span class="hl">2 · N · D</span> = 2 · ${toks.length} · d  →  растёт как <span class="hl">O(N)</span>\nобмен с HBM за шаг: чтение <span class="hl">2·N·D</span> · запись 2·D`));
+  }else{
+   const row=div('');row.style.cssText='display:flex;gap:26px;margin:10px 0 14px;flex-wrap:wrap;align-items:center';
+   const mk=(name,col,dim)=>{const b=div('','');b.style.cssText=`border:1.5px solid ${col};border-radius:4px;padding:10px 16px;color:${col};font-family:var(--f-mono);font-size:11px;text-align:center;background:${col}11`;b.innerHTML=name+'<br><span style="font-size:9px;color:var(--ink3)">'+dim+'</span>';b.classList.add('pulse');return b};
+   row.appendChild(mk('S — состояние KDA',C.mem,'d_h × d_h на голову · фиксировано'));
+   body.appendChild(row);
+   const pulse=gen>0?GEN.slice(0,gen):[];
+   body.appendChild(div('readout',`каждый шаг декодирования: <span class="hv">S ← KDA(S, xₜ)</span> — одно обновление фиксированного размера, без роста\nразмер состояния: <span class="hv">d_h × d_h на голову</span> — не зависит от числа токенов, <span class="hg">O(1)</span>`));
+  }
+  $('#f4step').disabled=gen>=GEN.length;
+ }
+ $('#f4modeA').onclick=()=>{mode='kv';$('#f4modeA').classList.add('on');$('#f4modeB').classList.remove('on');render()};
+ $('#f4modeB').onclick=()=>{mode='st';$('#f4modeB').classList.add('on');$('#f4modeA').classList.remove('on');render()};
+ $('#f4prefill').onclick=()=>{gen=0;render()}; // Префилл обрабатывает только промпт; генерация начинается отдельной кнопкой
+ $('#f4step').onclick=()=>{if(gen<GEN.length){gen++;render()}};
+ $('#f4reset').onclick=()=>{gen=0;render()};
+ render();
+})();
+
+/* ============ S5: ЛИНЕЙНОЕ ВНИМАНИЕ ============ */
+(function(){
+ const body=$('#f5body');if(!body)return;
+ let reassociated=false;
+ const s=sv('svg',{viewBox:'0 0 860 330'});body.appendChild(s);
+ const g=sv('g',{},s);
+ let bigSq={x:560,y:60,size:190},smallSq={x:590,y:100,size:90};
+ function draw(){
+  g.innerHTML='';
+  const ph=0.15;
+  // Токены
+  box(g,20,80,86,50,'ТОКЕНЫ','N × d',C.ink3);
+  box(g,20,190,86,50,'φ(q), φ(k), v','на токен',C.latent);
+  if(!reassociated){
+   // (QKᵀ)V
+   box(g,150,110,86,50,'Q · Kᵀ','',C.attn);
+   txt(g,193,190,'N × N — каждый запрос × каждый ключ',{'text-anchor':'middle','font-size':8.5,fill:C.ink3});
+   arrow(g,106,105,148,135,C.attn);arrow(g,106,215,148,150,C.attn);
+   // Большая матрица
+   const m=sv('rect',{x:bigSq.x,y:bigSq.y,width:bigSq.size,height:bigSq.size,fill:'rgba(95,168,255,.20)',stroke:C.attn,'stroke-width':1.5},g);
+   sv('path',{d:`M${bigSq.x},${bigSq.y+bigSq.size} L${bigSq.x+bigSq.size},${bigSq.y} L${bigSq.x+bigSq.size},${bigSq.y+bigSq.size} Z`,fill:'rgba(95,168,255,.25)'},g);
+   txt(g,bigSq.x+bigSq.size/2,bigSq.y-8,'Оценки N × N',{'text-anchor':'middle','font-size':10,fill:C.attn});
+   txt(g,bigSq.x+bigSq.size/2,bigSq.y+bigSq.size+16,'O(N²) ячеек — в реализациях до FlashAttention хранятся явно',{'text-anchor':'middle','font-size':8.5,fill:C.ink3});
+   arrow(g,236,135,bigSq.x-4,bigSq.y+bigSq.size/2,C.attn);
+   // Умножение на V
+   box(g,790,120,60,60,'× V','',C.attn);
+   arrow(g,bigSq.x+bigSq.size+2,bigSq.y+bigSq.size/2,788,150,C.attn);
+   box(g,790,210,60,50,'ВЫХОД','N × d',C.res);
+   arrow(g,820,180,820,208,C.res);
+   txt(g,430,300,'порядок вычислений: (Q × Kᵀ) × V — сначала все оценки, затем смешивание значений',{'text-anchor':'middle','font-size':9,fill:C.ink3});
+  }else{
+   // Q(KᵀV)
+   box(g,150,200,86,50,'Kᵀ · V','',C.mem);
+   txt(g,193,270,'d × d — сворачиваем ключи и значения в состояние',{'text-anchor':'middle','font-size':8.5,fill:C.ink3});
+   arrow(g,106,215,148,225,C.mem);arrow(g,106,105,148,205,C.mem);
+   const m=sv('rect',{x:smallSq.x,y:smallSq.y,width:smallSq.size,height:smallSq.size,fill:'rgba(167,139,250,.22)',stroke:C.mem,'stroke-width':1.5},g);
+   for(let i=1;i<3;i++){sv('line',{x1:smallSq.x+i*smallSq.size/3,y1:smallSq.y,x2:smallSq.x+i*smallSq.size/3,y2:smallSq.y+smallSq.size,stroke:'rgba(167,139,250,.35)'},g);sv('line',{x1:smallSq.x,y1:smallSq.y+i*smallSq.size/3,x2:smallSq.x+smallSq.size,y2:smallSq.y+i*smallSq.size/3,stroke:'rgba(167,139,250,.35)'},g)}
+   txt(g,smallSq.x+smallSq.size/2,smallSq.y-8,'состояние S = Σ φ(k)ᵀ·v  (d×d)',{'text-anchor':'middle','font-size':10,fill:C.mem});
+   txt(g,smallSq.x+smallSq.size/2,smallSq.y+smallSq.size+16,'размер фиксирован и не зависит от N — O(1)',{'text-anchor':'middle','font-size':8.5,fill:C.res});
+   arrow(g,236,225,smallSq.x-4,smallSq.y+smallSq.size/2,C.mem);
+   box(g,740,120,110,50,'φ(Q) · S / (φ(Q) · z)','нормализация',C.attn);
+   arrow(g,106,105,738,140,C.attn);arrow(g,smallSq.x+smallSq.size+2,smallSq.y+smallSq.size/2,738,150,C.mem);
+   box(g,790,210,60,50,'ВЫХОД','N × d',C.res);
+   arrow(g,800,170,818,208,C.res);
+   txt(g,430,300,'порядок вычислений: Q × (Kᵀ × V) — то же произведение после перегруппировки, без матрицы N×N',{'text-anchor':'middle','font-size':9,fill:C.ink3});
+   txt(g,430,316,'стоимость: N²·d FLOP  →  N·d² FLOP — радикальная разница при d ≪ N (например, 128 и 10⁶)',{'text-anchor':'middle','font-size':8.5,fill:'#D9A441'});
+  }
+ }
+ draw();
+ let anim=0;
+ const resetReassociation=()=>{if(anim){cancelAnimationFrame(anim);anim=0}reassociated=false;bigSq={x:560,y:60,size:190};draw()};
+ $('#f5reass').onclick=()=>{
+  if(anim||reassociated){resetReassociation();return}
+  // Анимация уменьшения большой матрицы
+  const t0=performance.now(),S0={...bigSq},S1={x:smallSq.x-20,y:smallSq.y-20,size:130};
+  function step(ts){const p=Math.min(1,(ts-t0)/650);const e=1-Math.pow(1-p,3);
+   bigSq={x:S0.x+(S1.x-S0.x)*e,y:S0.y+(S1.y-S0.y)*e,size:S0.size+(S1.size-S0.size)*e};
+   draw();
+   // Переходная матрица меняет исходный цвет на фиолетовый
+   if(p<1)anim=requestAnimationFrame(step);else{anim=0;reassociated=true;draw()}
+  }
+  if(RM){bigSq={...S1};reassociated=true;draw()}else anim=requestAnimationFrame(step);
+ };
+ $('#f5reset').onclick=resetReassociation;
+ // 05б: ядра
+ const b=$('#f5bbody');if(!b)return;
+ const s2=sv('svg',{viewBox:'0 0 860 200'});b.appendChild(s2);
+ const g2=sv('g',{},s2);
+ const X0=80,X1=820,Y0=170,Y1=30;
+ g2.appendChild(sv('line',{x1:X0,y1:Y0,x2:X1,y2:Y0,stroke:C.line}));
+ g2.appendChild(sv('line',{x1:X0,y1:Y0,x2:X0,y2:Y1,stroke:C.line}));
+ for(let px=0;px<=200;px+=1){
+  const x=X0+(px/200)*(X1-X0);
+  const xv=px/200*3-1.5;
+  const sm=1/(1+Math.exp(-xv));
+  const el=xv<=0?Math.exp(xv):xv+1;
+  const ymax=2.5,ys=Y0-sm/ymax*130,ye=Y0-el/ymax*130;
+  if(px>0){g2.appendChild(sv('circle',{cx:x,cy:ys,r:1.8,fill:C.attn}));g2.appendChild(sv('circle',{cx:x,cy:ye,r:1.8,fill:C.mem}))}
+ }
+ txt(g2,X0-20,Y0+4,'0',{'font-size':9,fill:C.ink3});txt(g2,X0+55,Y0+16,'softmax([x, 0])₁ = sigmoid(x)',{'font-size':10,fill:C.attn});
+ txt(g2,X0+475,Y0+16,'ELU(x)+1',{'font-size':10,fill:C.mem});
+ txt(g2,X0-60,Y0-118,'оценка →',{'font-size':9,fill:C.ink3});
+})();
+
+/* ============ ОБЩИЙ ДВИЖОК S6 И S7 ============ */
+const Delta={};
+(function(){
+ const d=4,T=6;
+ const toks=['Париж','—','это','столица','Франции','.'];
+ const rng=mulberry32(7);
+ const vec=()=>Array.from({length:d},()=>rng()*2-1);
+ const norm=v=>{const m=Math.hypot(...v)||1;return v.map(x=>x/m)};
+ const mul=(vec,M)=>M[0].map((_,j)=>vec.reduce((a,x,i)=>a+x*M[i][j],0));
+ const data=toks.map(()=>({k:norm(vec()),v:vec(),q:vec()}));
+ const BETA=0.85;
+ function stateAt(n,alpha){
+  let S=Array.from({length:d},()=>Array(d).fill(0));
+  for(let i=0;i<n;i++){
+   if(alpha!=null)S=S.map(r=>r.map(x=>alpha*x));
+   const{k,v}=data[i];
+   const vo=mul(k,S);
+   const u=v.map((x,j)=>BETA*(x-vo[j]));
+   S=S.map((r,ri)=>r.map((x,ci)=>x+k[ri]*u[ci]));
+  }
+  return S;
+ }
+ Delta.mul=mul;Delta.data=data;Delta.d=d;Delta.T=T;Delta.toks=toks;Delta.BETA=BETA;Delta.stateAt=stateAt;Delta.norm=norm;
+})();
+
+/* S6 */
+(function(){
+ const body=$('#f6state');if(!body)return;
+ let t=0,play=null;
+ const{d,T,toks,data,BETA,stateAt}=Delta;
+ function render(){
+  // Лента токенов
+  const ts=$('#f6toks');ts.innerHTML='';
+  toks.forEach((w,i)=>{const c=document.createElement('span');c.className='chip'+(i<t?' done':i===t?' cur':'');c.textContent=w;ts.appendChild(c)});
+  // Сетка состояния
+  const sw=$('#f6state');sw.innerHTML='';
+  sw.appendChild(div('note','<b>состояние S</b> — d×d = 4×4 · значения вычисляются в реальном времени'));
+  const S=stateAt(t,null);
+  sw.appendChild(miniGrid(S,44,{nums:true}));
+  sw.appendChild(div('note',`макс. |S| = <span style="color:var(--mem)">${fmt(Math.max(...S.flat().map(Math.abs)))}</span> · модуль значения кодируется насыщенностью фиолетового цвета`));
+  // Математическая панель
+  const mp=$('#f6math');mp.innerHTML='';
+  if(t===0){mp.innerHTML='<div class="readout">состояние заполнено нулями.\nнажмите <span class="hv">«Следующий токен»</span>, чтобы записать первую ассоциацию.</div>';return}
+  const{k,v}=data[t-1],Sprev=stateAt(t-1,null);
+  const vo=Delta.mul(k,Sprev);
+  const u=v.map((x,j)=>BETA*(x-vo[j]));
+  // Проверка обратного чтения при q=k
+  const Snew=stateAt(t,null);
+  const o=Delta.mul(k,Snew);
+  const expected=v.map((x,j)=>(1-BETA)*vo[j]+BETA*x);
+  mp.innerHTML=`<div class="readout">токен <span class="hl">${toks[t-1]}</span> (t=${t}) — дельта-запись:
+
+<span class="hv">чтение</span>  v_old = k · S      = [${vo.map(fmt).join(', ')}]
+<span class="hl">дельта</span>  u = β(v − v_old)   = [${u.map(fmt).join(', ')}]   β = ${BETA}
+<span class="hv">запись</span>  S ← S + kᵀ · u     (внешнее произведение)
+
+<span class="hg">обратное чтение</span> при q = k:
+o = k · S = [${o.map(fmt).join(', ')}]
+(1−β)·v_old + β·v = [${expected.map(fmt).join(', ')}]   ✓  при ‖k‖ = 1</div>`;
+ }
+ $('#f6next').onclick=()=>{if(t<T){t++;render()}};
+ $('#f6prev').onclick=()=>{if(t>0){t--;render()}};
+ $('#f6reset').onclick=()=>{if(play){clearInterval(play);play=null}$('#f6play').textContent='Запустить';t=0;render()};
+ $('#f6play').onclick=function(){if(play){clearInterval(play);play=null;this.textContent='Запустить';return}this.textContent='Пауза';
+  play=setInterval(()=>{if(t>=T){clearInterval(play);play=null;$('#f6play').textContent='Запустить';return}t++;render()},1100)};
+ render();
+})();
+
+/* S7 */
+(function(){
+ const body=$('#f7body');if(!body)return;
+ let alpha=0.85,shown=0;
+ const{d,T,toks,data,BETA,stateAt,mul}=Delta;
+ function render(){
+  body.innerHTML='';
+  const S=stateAt(shown,shown>0?alpha:null);
+  const wrap=div('');wrap.style.cssText='display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:26px;align-items:start';
+  body.appendChild(wrap);
+  const left=div('');wrap.appendChild(left);
+  left.appendChild(div('note',`<b>вентильное обновление</b> — шаг ${shown}/${T} · α = ${alpha}`));
+  left.appendChild(miniGrid(S,44,{nums:true}));
+  left.appendChild(div('note',`накопленное затухание после ${shown} шагов: γ = αᵗ = <span style="color:var(--route)">${(alpha**shown).toFixed(3)}</span><br>макс. |S| = <span style="color:var(--mem)">${fmt(Math.max(...S.flat().map(Math.abs)))}</span>`));
+  const right=div('');wrap.appendChild(right);
+  if(shown===0)right.innerHTML='<div class="readout">состояние заполнено нулями · нажмите <span class="ho">«Шаг обновления»</span></div>';
+  else{
+   const{k,v}=data[shown-1],Sprev=stateAt(shown-1,shown>1?alpha:null);
+   const Sdec=Sprev.map(r=>r.map(x=>alpha*x));
+   const vo=mul(k,Sdec);
+   const u=v.map((x,j)=>BETA*(x-vo[j]));
+   right.innerHTML=`<div class="readout">токен <span class="hl">${toks[shown-1]}</span>:
+
+<span class="ho">затухание</span> S′ = α · S       (умножить каждую ячейку на ${alpha})
+<span class="hv">чтение</span>   v_old = k · S′    = [${vo.map(fmt).join(', ')}]
+<span class="hl">дельта</span>   u = β(v − v_old)  = [${u.map(fmt).join(', ')}]
+<span class="hv">запись</span>   S ← S′ + kᵀ · u
+
+α = 1 → чистый DeltaNet · α = 0 → прежнее состояние полностью забывается перед записью</div>`;
+  }
+  // Сетки для сравнения
+  const A=stateAt(6,1),B=stateAt(6,0.75);
+  const gA=$('#f7cmpA');gA.innerHTML='';gA.appendChild(miniGrid(A,30,{}));
+  $('#f7cmpAn').innerHTML=`макс. |S| после 6 записей: <span style="color:var(--mem)">${fmt(Math.max(...A.flat().map(Math.abs)))}</span> — продолжает расти, помехи накапливаются`;
+  const gB=$('#f7cmpB');gB.innerHTML='';gB.appendChild(miniGrid(B,30,{}));
+  $('#f7cmpBn').innerHTML=`макс. |S| после 6 записей: <span style="color:var(--mem)">${fmt(Math.max(...B.flat().map(Math.abs)))}</span> — ограничен затуханием, ёмкость освобождается`;
+ }
+ $('#f7slider').oninput=e=>{alpha=+e.target.value/100;$('#f7a').textContent=alpha.toFixed(2);render()};
+ $('#f7step').onclick=()=>{if(shown<T){shown++;render()}};
+ render();
+})();
+
+/* ============ S8: KDA ============ */
+(function(){
+ const wrap=$('#f8svgwrap');if(!wrap)return;
+ const s=sv('svg',{viewBox:'0 0 920 500'});wrap.appendChild(s);
+ s.style.touchAction='pan-y';
+ const g=sv('g',{},s); // Группа панорамирования и масштабирования
+ const gi=sv('g',{},g); // Наглядный слой
+ const gr=sv('g',{},g); // Подробный слой
+ gr.style.display='none';
+ let z=1,tx=0,ty=0;
+ function apply(){g.setAttribute('transform',`translate(${tx},${ty}) scale(${z})`)}
+ function paths(){return{a:$$('#f8 .pA',s),st:$$('#f8 .pS',s),ga:$$('#f8 .pG',s)}}
+ let on={a:true,st:true,g:true};
+ function paintPaths(){
+  $$('.pA',s).forEach(e=>e.classList.toggle('dimmed',!on.a));
+  $$('.pS',s).forEach(e=>e.classList.toggle('dimmed',!on.st));
+  $$('.pG',s).forEach(e=>e.classList.toggle('dimmed',!on.g));
+ }
+ function draw(){
+  gi.innerHTML='';gr.innerHTML='';
+  // Вход
+  box(gi,20,210,96,60,'ВХОД x','(b, t, d)','#97A1B8');
+  // Проекции
+  const prj=[['W_q — запросы',60,C.attn,'pA'],['W_k — ключи',130,C.attn,'pA'],['W_v — значения',200,C.attn,'pA'],['W_β — вентиль записи',275,C.route,'pG'],['W_α — поканальное затухание',352,C.route,'pG']];
+  prj.forEach(p=>{const b=box(gi,170,p[1],150,40,p[0],'',p[2]);b.classList.add(p[3]);arrow(gi,116,240,168,p[1]+20,p[2])});
+  txt(gi,170,110,'ПРОЕКЦИИ (на голову: d → d_h)',{'font-size':8.5,fill:C.ink3});
+  // Граница блока
+  sv('line',{x1:352,y1:40,x2:352,y2:470,stroke:C.line,'stroke-dasharray':'4 5'},gi);
+  txt(gi,358,52,'граница блока · в Kimi Linear C = 64 [ИСТОЧНИК]',{'font-size':8,fill:C.ink3});
+  // Разделение по головам
+  box(gi,352,84,86,90,'ГОЛОВЫ','h × d_h',C.ink3).classList.add('pA');
+  arrow(gi,320,80,350,110,C.attn);arrow(gi,320,150,350,140,C.attn);
+  // ВНУТРИ БЛОКА: путь внимания сверху
+  const a1=box(gi,470,60,150,56,'маскированная A','учтено затухание Γ · C×C',C.attn);a1.classList.add('pA');
+  arrow(gi,438,110,468,88,C.attn);
+  const a2=box(gi,470,150,150,50,'× P_c → o_intra','P_c = U_c − W_cS_c',C.attn);a2.classList.add('pA');
+  arrow(gi,545,116,545,148,C.attn);
+  txt(gi,470,218,'внимание внутри блока вычисляется явно: сначала оценки, затем каузальная маска',{'font-size':8.5,fill:C.attn});
+  // МЕЖДУ БЛОКАМИ: путь состояния снизу
+  const sbox=box(gi,470,300,120,64,'СОСТОЯНИЕ S','d_h × d_h · фикс.',C.mem);sbox.classList.add('pS');
+  txt(gi,470,380,'переносится из предыдущего блока',{'font-size':8.5,fill:C.mem});
+  arrow(gi,438,340,468,332,C.mem);
+  // Вентили состояния
+  const gbox=box(gi,470,410,120,52,'Diag(α)','поканальное затухание',C.route);gbox.classList.add('pG');
+  arrow(gi,320,392,468,436,C.route);arrow(gi,530,364,530,408,C.route);
+  const dbox=box(gi,630,300,140,64,'ПСЕВДОЗНАЧЕНИЯ P','P = U − W·S',C.mem);dbox.classList.add('pS');
+  arrow(gi,592,332,628,325,C.mem);arrow(gi,592,436,660,366,C.route);
+  const o1=box(gi,630,210,120,50,'(Γ⊙Q)·S','→ o_inter',C.mem);o1.classList.add('pS');
+  arrow(gi,592,315,655,262,C.mem);
+  // Обратная связь состояния
+  arrow(gi,700,364,700,240,C.mem,'4 4',{}); // Вверх
+  // Объединение
+  box(gi,800,130,96,50,'⊕ объединение','',C.ink).classList.add('pA');
+  arrow(gi,622,175,798,150,C.attn);arrow(gi,752,235,798,160,C.mem);
+  box(gi,786,210,124,50,'норма · вентиль · W_o','→ выход (b, t, d)',C.res).classList.add('pA');
+  arrow(gi,848,180,848,208,C.res);
+  // Линии потока
+  [[470,110,620,110,C.attn],[545,116,545,148,C.attn],[470,332,620,332,C.mem],[530,364,530,408,C.route],[622,175,798,150,C.attn],[752,235,798,160,C.mem]].forEach(f=>{
+   sv('path',{d:`M${f[0]},${f[1]}L${f[2]},${f[3]}`,stroke:f[4],'stroke-width':2.2,fill:'none',class:'flow','stroke-dasharray':'6 8',opacity:.75},gi);
+  });
+  // Подробный слой: размерности и формулы
+  txt(gr,24,40,'ПОДРОБНЫЙ РЕЖИМ — формы тензоров и правило обновления [ИСТОЧНИК: Kimi Linear, arXiv:2510.26692]',{'font-size':10,fill:C.ink,'font-weight':700});
+  const lines=[
+   'x: (b, t, d)   →  проекции для каждой головы  →  q, k, v: (b, h, t, d_h)',
+   'разбиение: t → t/C блоков по C токенов (в Kimi Linear C = 64; блоки согласованы с матричными ядрами GPU)',
+   'накопленное затухание: Γ_c[r,:] = ∏_{j=1}^{r} α_j; операции ⊙ и / выполняются поэлементно',
+   'внутри блока:   A = tril[(Γ_c⊙Q_c)(K_c/Γ_c)ᵀ],   P_c = U_c − W_cS_c,   o_intra = A·P_c',
+   'между блоками:  o_inter = (Γ_c⊙Q_c)·S_c',
+   'обновление:     S_t = (I − β_t k_t k_tᵀ) · Diag(α_t) · S_{t-1} + β_t k_t v_tᵀ',
+   '   α_t: (d_h,) поканальное затухание — обучается; β_t: скалярная сила записи — обучается',
+   'обновление блока: S_{c+1}=Diag(γ_c^C)S_c+(Γ_c^{i→C}⊙K_c)ᵀ(U_c−W_cS_c)',
+   'блочный алгоритм: переходы ранга 1 сжимаются вариантом DPLR («диагональ + низкий ранг»),',
+   '   а векторизованная прямая подстановка вычисляет C поправок параллельно (W = M·(Γ⊙K), U = M·V)',
+   'выход головы: z=o_intra+o_inter; y=W_o[g(x)⊙RMSNorm_head(z)], g(x)=sigmoid(W_g↑W_g↓x)'
+  ];
+  lines.forEach((l,i)=>txt(gr,24,64+i*17,l,{'font-size':9.2,fill:i===5?C.route:C.ink3}));
+  txt(gr,24,64+lines.length*17+14,'гибридная схема: каждая группа содержит 3 слоя KDA и 1 слой MLA [ИСТОЧНИК]',{'font-size':9.5,fill:C.latent});
+  paintPaths();
+ }
+ draw();
+function bind(id,key){$(id).onclick=function(){on[key]=!on[key];this.classList.toggle('on',on[key]);paintPaths()}}
+bind('#f8pA','a');
+bind('#f8pS','st');
+bind('#f8pG','g');
+ $('#f8mI').onclick=()=>{gi.style.display='';gr.style.display='none';$('#f8mI').classList.add('on');$('#f8mR').classList.remove('on')};
+ $('#f8mR').onclick=()=>{gi.style.display='none';gr.style.display='';$('#f8mR').classList.add('on');$('#f8mI').classList.remove('on')};
+ // Панорамирование и масштабирование
+ $('#f8zi').onclick=()=>{z=Math.min(3,z*1.25);apply()};
+ $('#f8zo').onclick=()=>{z=Math.max(.5,z/1.25);apply()};
+ $('#f8zr').onclick=()=>{z=1;tx=0;ty=0;apply()};
+ let drag=null,moved=false;
+ s.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,tx,ty,id:e.pointerId};moved=false});
+ s.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!moved&&Math.hypot(dx,dy)>4){moved=true;try{s.setPointerCapture(drag.id)}catch(_){}s.style.cursor='grabbing'}if(moved){tx=drag.tx+dx/z;ty=drag.ty+dy/z;apply()}});
+ const endDrag=()=>{if(drag&&moved){try{s.releasePointerCapture(drag.id)}catch(_){}}s.style.cursor='';drag=null;moved=false};
+ s.addEventListener('pointerup',endDrag);
+ s.addEventListener('pointercancel',endDrag);
+ s.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();z=Math.max(.5,Math.min(3,z*(e.deltaY<0?1.12:.89)));apply()}},{passive:false});
+})();
+
+/* ============ S9: ГИБРИДНЫЙ СТЕК ============ */
+(function(){
+ const stack=$('#f9stack');if(!stack)return;
+ let types=Array.from({length:12},(_,i)=>(i%4===3)?'M':'K');
+ const N=8192,h=16,dh=128,dc=512;
+ function render(){
+  stack.innerHTML='';
+  types.forEach((t,i)=>{
+   const row=div('f9row');
+   const isM=t==='M';
+   const chip=document.createElement('button');
+   chip.style.cssText=`text-align:left;font-size:10.5px;padding:8px 12px;border-radius:3px;border:1px solid ${isM?C.attn:C.mem};background:${isM?'rgba(95,168,255,.10)':'rgba(167,139,250,.10)'};color:${isM?C.attn:C.mem};text-transform:none;letter-spacing:0;font-family:var(--f-mono);width:100%`;
+   chip.textContent=(i+1)+'. '+(isM?'MLA — полное внимание (латентный KV-кэш)':'KDA — рекуррентный слой (фиксированное состояние)');
+   chip.onclick=()=>{types[i]=isM?'K':'M';render()};
+   row.appendChild(div('hint','L'+(i+1)));
+   row.appendChild(chip);
+   const sz=isM?N*dc:h*dh*dh;
+   row.appendChild(div('hint f9mem',isM?'память: '+fmtBig(sz)+' = N·d_c':'память: '+fmtBig(sz)+' = h·d_h²'));
+   stack.appendChild(row);
+  });
+  // Полосы
+  const bars=$('#f9bars');bars.innerHTML='';
+  const tot={M:types.filter(t=>t==='M').length*N*dc,K:types.filter(t=>t==='K').length*h*dh*dh};
+  const data=[
+   ['латентный кэш слоёв MLA',tot.M,C.attn,fmtBig(tot.M)+' элементов'],
+   ['состояния слоёв KDA',tot.K,C.mem,fmtBig(tot.K)+' элементов'],
+   ['всего',tot.M+tot.K,C.ink,fmtBig(tot.M+tot.K)+' элементов']
+  ];
+  const mx=Math.max(...data.map(d=>d[1]));
+  data.forEach(d=>{const r=div('brow');r.innerHTML=`<span>${d[0]}</span>`;const tr=div('trk');const fl=div('fl');fl.style.width=Math.max(1,d[1]/mx*100)+'%';fl.style.background=d[2];tr.appendChild(fl);r.appendChild(tr);r.appendChild(div('',d[3]));bars.appendChild(r)});
+  bars.appendChild(div('note',`соотношение в гибриде: <b>${types.filter(t=>t==='K').length} KDA : ${types.filter(t=>t==='M').length} MLA</b> — Kimi использует 3:1 [ИСТОЧНИК]`));
+ }
+ [['#f9pK',()=>types=Array.from({length:12},(_,i)=>(i%4===3)?'M':'K')],
+  ['#f9pF',()=>types=Array.from({length:12},()=>'M')],
+  ['#f9pL',()=>types=Array.from({length:12},()=>'K')]].forEach(p=>$(p[0]).onclick=()=>{types=p[1]();render()});
+ render();
+})();
+
+/* ============ S10: MLA ============ */
+(function(){
+ const body=$('#f10body');if(!body)return;
+ let compressed=false;
+ const s=sv('svg',{viewBox:'0 0 900 340'});body.appendChild(s);
+ const g=sv('g',{},s);
+ function render(){
+  g.innerHTML='';
+  const nRows=5,rowH=16,pitch=20,colX=30,colW=150;
+  // Стек K сверху слева
+  const kY=38;
+  txt(g,colX,kY-10,'Обычный кэш K — для сравнения (N × d)',{'font-size':9,fill:C.attn});
+  for(let i=0;i<nRows;i++){sv('rect',{x:colX,y:kY+i*pitch,width:colW,height:rowH,rx:2,fill:`rgba(95,168,255,${(compressed?0.08:0.28)*(1-i/nRows*0.5)})`,stroke:`rgba(95,168,255,${compressed?0.25:0.6})`},g)}
+  const kMid=kY+(nRows*pitch)/2;
+  txt(g,colX,kY+nRows*pitch+6,'N × d — растёт вместе с контекстом',{'font-size':8,fill:C.ink3});
+  // Стек V снизу слева
+  const vY=192;
+  txt(g,colX,vY-10,'Обычный кэш V — для сравнения (N × d)',{'font-size':9,fill:'#8FC0FF'});
+  for(let i=0;i<nRows;i++){sv('rect',{x:colX,y:vY+i*pitch,width:colW,height:rowH,rx:2,fill:`rgba(143,192,255,${(compressed?0.08:0.22)*(1-i/nRows*0.5)})`,stroke:`rgba(143,192,255,${compressed?0.25:0.55})`},g)}
+  const vMid=vY+(nRows*pitch)/2;
+  txt(g,colX,vY+nRows*pitch+6,'N × d — растёт вместе с контекстом',{'font-size':8,fill:C.ink3});
+  // Латентное представление между двумя стеками
+  const latX=330,latW=160,latY=138,latH=58;
+  sv('rect',{x:latX,y:latY,width:latW,height:latH,rx:3,fill:'rgba(56,198,214,.18)',stroke:C.latent,'stroke-width':1.6},g);
+  txt(g,latX+latW/2,latY+22,'латентный вектор cₜ',{'text-anchor':'middle','font-size':11,fill:C.latent});
+  txt(g,latX+latW/2,latY+36,'N × d_c  (d_c ≪ d)',{'text-anchor':'middle','font-size':8.5,fill:C.latent});
+  for(let i=0;i<6;i++){sv('rect',{x:latX+14+i*22,y:latY+latH-16,width:18,height:9,rx:2,fill:`rgba(56,198,214,${compressed?0.55:0.3})`,stroke:C.latent},g)}
+  // Реальный путь MLA: скрытое состояние x → общий латентный вектор c
+  box(g,205,140,86,54,'СКРЫТОЕ xₜ','размерность d',C.ink3);
+  arrow(g,293,167,latX-4,167,C.latent,'',{'stroke-width':1.8});
+  txt(g,238,132,'W_c',{'text-anchor':'middle','font-size':8.5,fill:C.latent});
+  // Стрелки повышающей проекции: латентное представление → восстановленные значения
+  const recX=560,recW=120;
+  arrow(g,latX+latW+4,latY+16,recX-4,86,C.latent,'',{'stroke-width':1.6});
+  arrow(g,latX+latW+4,latY+latH-16,recX-4,282,C.latent,'',{'stroke-width':1.6});
+  txt(g,latX+latW+10,118,'повышающая проекция W_UK → K̂',{'font-size':8.5,fill:C.latent});
+  txt(g,latX+latW+10,232,'повышающая проекция W_UV → V̂',{'font-size':8.5,fill:C.latent});
+  // Восстановленные элементы: K̂ сверху справа, V̂ снизу справа
+  txt(g,recX,46,'K̂ (восстанавливается при чтении из кэша)',{'font-size':8.5,fill:C.attn});
+  for(let i=0;i<3;i++)sv('rect',{x:recX,y:54+i*20,width:recW,height:16,rx:2,fill:'none',stroke:`rgba(95,168,255,${compressed?.7:.3})`,'stroke-dasharray':'4 3'},g);
+  txt(g,recX,250,'V̂ (восстанавливается при чтении из кэша)',{'font-size':8.5,fill:'#8FC0FF'});
+  for(let i=0;i<3;i++)sv('rect',{x:recX,y:258+i*20,width:recW,height:16,rx:2,fill:'none',stroke:`rgba(143,192,255,${compressed?.7:.3})`,'stroke-dasharray':'4 3'},g);
+  // Восстановленные элементы → внимание
+  arrow(g,recX+recW+4,86,706,166,`rgba(95,168,255,${compressed?.7:.35})`,'3 3');
+  arrow(g,recX+recW+4,282,706,190,`rgba(143,192,255,${compressed?.7:.35})`,'3 3');
+  box(g,710,150,150,54,'ВНИМАНИЕ','читает K̂, V̂',C.attn);
+  // Дополнения MLA в K3 сверху справа
+  txt(g,710,52,'Дополнения MLA в K3 [ИСТОЧНИК]:',{'font-size':8.5,fill:C.ink3});
+  ['NoPE (без явных позиций)','Gated MLA','полноранговый выходной вентиль'].forEach((t,i)=>txt(g,710,68+i*13,'· '+t,{'font-size':8.5,fill:C.latent}));
+  // Подпись состояния
+  txt(g,colX,328,compressed?'сжато: кэш хранит только латентное представление; повышающая проекция выполняется при работе внимания':'без сжатия: хранятся полные K и V — нажмите «Сжать»',{'font-size':9,fill:compressed?C.latent:C.ink3});
+ }
+ render();
+ $('#f10c').onclick=()=>{compressed=!compressed;$('#f10c').textContent=compressed?'Распаковать':'Сжать';render()};
+ $('#f10r').onclick=()=>{compressed=false;$('#f10c').textContent='Сжать';render()};
+ // Полосы размера кэша
+ const d=4096,dc=512;
+ function bars(){
+  const N=2**(+$('#f10slider').value);
+  $('#f10n').textContent=fmtCount(N);
+  const el=$('#f10bars');el.innerHTML='';
+  const rows=[['обычный KV-кэш',2*N*d,C.attn],['латентный кэш MLA',N*dc,C.latent]];
+  const mx=rows[0][1];
+  rows.forEach(r=>{const b=div('brow');b.innerHTML=`<span>${r[0]}</span>`;const tr=div('trk');const fl=div('fl');fl.style.width=Math.max(1.5,r[1]/mx*100)+'%';fl.style.background=r[2];tr.appendChild(fl);b.appendChild(tr);b.appendChild(div('',fmtBig(r[1])+' ед.'));el.appendChild(b)});
+  el.appendChild(div('note',`сокращение при этих соотношениях: <b style="color:var(--latent)">${(100-(rows[1][1]/rows[0][1]*100)).toFixed(0)}%</b> [УЧЕБНЫЙ ПРИМЕР] · для Kimi Linear опубликовано уменьшение объёма максимум на <b style="color:var(--res)">75%</b> [ИСТОЧНИК]`));
+ }
+ $('#f10slider').oninput=bars;bars();
+})();
+
+/* ============ S11: MoE ============ */
+(function(){
+ const stage=$('#moeStage');if(!stage)return;
+ const EX=['E1','E2','E3','E4','E5','E6','E7','E8'],SH=['S1','S2'];
+ const D=6,rng=mulberry32(99);
+ const feats=Array.from({length:5},()=>Array.from({length:D},()=>rng()*2-1));
+ const W=Array.from({length:8},()=>Array.from({length:D},()=>rng()*2-1));
+ let routed=false,timers=[];
+ function layout(){
+  stage.innerHTML='';
+  stage.style.position='relative';
+  const qlab=div('hint','ТОКЕНЫ');qlab.style.cssText='position:absolute;left:0;top:0';stage.appendChild(qlab);
+  // Маршрутизатор
+  const r=div('vpanel');r.style.cssText='position:absolute;left:110px;top:0;width:170px;padding:10px 12px';
+  r.innerHTML='<h4 class="cr" style="margin:0 0 6px;font-size:10px">МАРШРУТИЗАТОР · g(x)=x·Wᵉ</h4>';
+  stage.appendChild(r);
+  // Эксперты
+  SH.forEach((e,i)=>{const b=div('vpanel');b.style.cssText=`position:absolute;left:330px;top:${i*70}px;width:88px;padding:8px;text-align:center`;b.innerHTML=`<h4 class="cg" style="margin:0;font-size:10px">${e}</h4><div style="font-size:8.5px;color:var(--ink3)">общий эксперт · для каждого токена</div>`;b.id='sh'+i;stage.appendChild(b)});
+  EX.forEach((e,i)=>{
+   const b=div('vpanel');
+   const col=i%2,row=Math.floor(i/2);
+   b.style.cssText=`position:absolute;left:${452+col*100}px;top:${row*70}px;width:88px;padding:8px;text-align:center;transition:all .3s`;
+   b.innerHTML=`<h4 class="cr" style="margin:0;font-size:10px">${e}</h4><div style="font-size:8px;color:var(--ink3)">маршрутизируемый эксперт</div>`;
+   b.id='ex'+i;stage.appendChild(b);
+  });
+  const out=div('vpanel');out.style.cssText='position:absolute;left:672px;top:70px;width:140px;padding:10px 12px';
+  out.innerHTML='<h4 class="ca" style="margin:0 0 6px;font-size:10px">Σ gₑ·Eₑ(x) → выход</h4><div id="moeOut" class="hint" style="color:var(--ink3)">ожидание токенов…</div>';
+  stage.appendChild(out);
+ }
+ function scores(f){return W.map(w=>w.reduce((a,x,i)=>a+x*f[i],0))}
+ function topk(a,k){return a.map((v,i)=>[v,i]).sort((x,y)=>y[0]-x[0]).slice(0,k).map(p=>p[1])}
+ function route(){
+  reset();routed=true;
+  feats.forEach((f,ti)=>{
+   timers.push(setTimeout(()=>{
+    const sc=scores(f),sel=topk(sc,4);
+    // Перемещение токена
+    const chip=document.createElement('div');chip.className='tokfly';chip.textContent='токен '+ti;
+    chip.style.left='18px';chip.style.top=(50+ti*30)+'px';stage.appendChild(chip);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+     chip.style.transform=`translate(${630+((ti%2)*90)}px, ${(ti*47)%260+30}px)`;
+    }));
+    // Подсветка экспертов
+    sel.forEach(i=>{const b=$('#ex'+i);if(b){b.style.borderColor=C.route;b.style.background='rgba(240,147,63,.16)'}});
+    ['#sh0','#sh1'].forEach(id=>{const b=$(id);if(b)b.style.borderColor=C.res});
+    // Полосы
+    const bars=$('#f11bars');bars.innerHTML=`<div class="hint" style="margin-bottom:6px">оценки маршрутизатора — токен ${ti} · top-4 из 8 (в K3 top-16 из 896 [ИСТОЧНИК])</div>`;
+    sc.forEach((v,i)=>{
+     const b=div('brow');b.innerHTML=`<span style="color:${sel.includes(i)?C.route:'var(--ink3)'}">${EX[i]}</span>`;
+     const tr=div('trk');const fl=div('fl');const mx=Math.max(...sc.map(Math.abs));fl.style.width=Math.abs(v)/mx*100+'%';fl.style.background=sel.includes(i)?C.route:'#3A4768';tr.appendChild(fl);b.appendChild(tr);
+     b.appendChild(div('',v.toFixed(2)));bars.appendChild(b);
+    });
+    $('#moeOut').innerHTML=`токен ${ti} → эксперты {${sel.map(i=>EX[i]).join(', ')}} + S1,S2`;
+   },ti*900));
+  });
+  timers.push(setTimeout(()=>{
+   const bars=$('#f11bars');
+   bars.appendChild(div('note',`<b>все параметры</b> = параметры всех экспертов · <b>активные параметры</b> = параметры 2 общих и 16 маршрутизируемых экспертов, выбранных для токена (K3: ~104 млрд из 2,8 трлн [ИСТОЧНИК: публикации])`));
+  },5*900));
+ }
+ function reset(){timers.forEach(clearTimeout);timers=[];routed=false;layout();$('#f11bars').innerHTML='<div class="hint">нажмите «Распределить токены», чтобы увидеть работу маршрутизатора: настоящие скалярные произведения по признакам, полученным из фиксированной случайной инициализации</div>'}
+ $('#f11play').onclick=route;$('#f11reset').onclick=reset;
+ reset();
+ // При изменении размера сохраняем высоту
+ addEventListener('resize',()=>{stage.style.height='330px'});stage.style.height='330px';
+})();
+
+/* ============ S12: AttnRes ============ */
+(function(){
+ const body=$('#f12body');if(!body)return;
+ let seed=1;
+ const NL=8,d=8;
+ function render(){
+  body.innerHTML='';
+  const wrap=div('f12compare');wrap.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:22px';
+  body.appendChild(wrap);
+  // Стандартный вариант
+  const A=div('vpanel');A.innerHTML='<h4 class="ca">СТАНДАРТНЫЙ ПОТОК — УЧЕБНАЯ НОРМАЛИЗАЦИЯ</h4>';wrap.appendChild(A);
+  const barsA=div('bars');A.appendChild(barsA);
+  const standardNames=['эмб. h₁'].concat(Array.from({length:NL},(_,i)=>'f'+(i+1)));
+  standardNames.forEach(name=>{
+   const b=div('brow');b.innerHTML=`<span>${name}</span>`;
+   const tr=div('trk');const fl=div('fl');fl.style.width='100%';fl.style.background=C.attn;fl.style.opacity=.55;tr.appendChild(fl);b.appendChild(tr);
+   b.appendChild(div('','11,1%'));
+   barsA.appendChild(b);
+  });
+  A.appendChild(div('note','Если эти девять векторных вкладов одинаковы по величине, условная нормированная доля каждого равна 1/9. В реальной остаточной связи коэффициенты равны 1, но величины и направления вкладов различаются.'));
+  // AttnRes
+  const B=div('vpanel');B.innerHTML='<h4 class="cg">ATTNRES — обучаемые веса извлечения</h4>';wrap.appendChild(B);
+  const rng=mulberry32(seed*31+7);
+  const q=Array.from({length:d},()=>rng()*2-1);
+  const K=Array.from({length:NL+1},()=>Array.from({length:d},()=>rng()*2-1));
+  const sc=K.map(k=>k.reduce((a,x,i)=>a+x*q[i],0));
+  const w=softmax(sc);
+  const names=['эмб. h₁'].concat(Array.from({length:NL},(_,i)=>'f'+(i+1)));
+  const barsB=div('bars');B.appendChild(barsB);
+  const mx=Math.max(...w);
+  w.forEach((v,i)=>{
+   const b=div('brow');b.innerHTML=`<span>${names[i]}</span>`;
+   const tr=div('trk');const fl=div('fl');fl.style.width=(v/mx*100)+'%';fl.style.background=i===0?C.ink:C.res;tr.appendChild(fl);b.appendChild(tr);
+   b.appendChild(div('',v.toFixed(3)));
+   if(v===mx)b.firstChild.style.color=C.res;
+   barsB.appendChild(b);
+  });
+  B.appendChild(div('note','этот слой в основном обращается к предшествующим слоям с наивысшими оценками — выбор <b>зависит от содержимого</b>: для каждого слоя обучается собственный запрос'));
+  seed++;
+ }
+ $('#f12reroll').onclick=render;
+ render();
+})();
+
+/* ============ S13: КАРТА KIMI K3 ============ */
+(function(){
+ const wrap=$('#f13svgwrap');if(!wrap)return;
+ const s=sv('svg',{viewBox:'0 0 560 860'});wrap.appendChild(s);
+ s.style.touchAction='pan-y';
+ const loopDefs=sv('defs',{},s);
+ const loopMarker=sv('marker',{id:'f13loop',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto'},loopDefs);
+ sv('path',{d:'M0,0L10,5L0,10z',fill:C.res},loopMarker);
+ const g=sv('g',{},s);let gT=sv('g',{},g);
+ let z=1,tx=0,ty=0,tech=false;
+ function apply(){g.setAttribute('transform',`translate(${tx},${ty}) scale(${z})`)}
+ const INFO={
+  input:{t:'ВХОДНЫЕ ТОКЕНЫ',c:C.ink3,d:'Во время декодирования токены поступают по одному при окне контекста длиной 1 млн токенов. Новый токен выбирается по распределению логитов — например, случайной выборкой (sampling); argmax соответствует жадному декодированию.'},
+  emb:{t:'ЭМБЕДДИНГ',c:C.ink3,d:'Эмбеддинги токенов (WTE) — здесь начинается остаточный поток h₁.'},
+  kda:{t:'СЛОЙ KDA',c:C.mem,d:'Kimi Delta Attention: рекуррентная память с состоянием фиксированного размера и поканальным затуханием. Обрабатывает большую часть последовательности со стоимостью декодирования O(1).',link:'#s8'},
+  mla:{t:'СЛОЙ GATED MLA',c:C.attn,d:'Многоголовое латентное внимание: компактный латентный KV-кэш, глобальное softmax-внимание и полноранговый выходной вентиль. После 23 групп 3:1 стоит дополнительный финальный Gated MLA.',link:'#s10'},
+  dense:{t:'ПЛОТНАЯ FFN',c:C.route,d:'После механизма смешивания токенов в первом слое стоит обычная плотная сеть прямого распространения (FFN). Начиная со слоя 2 эту роль выполняет Stable LatentMoE.',link:'#s11'},
+  moe:{t:'STABLE LATENTMOE',c:C.route,d:'У каждого слоя, кроме первого, есть собственный Stable LatentMoE: два общих эксперта обрабатывают полную ширину d = 7168; 896 маршрутизируемых работают при латентной ширине 3584, из них для токена активны 16.',link:'#s11'},
+  attnres:{t:'BLOCK ATTNRES',c:C.res,d:'Все 93 слоя разделены на 8 блоков размером до 12. Каждый слой применяет внимание по завершённым суммам блоков и текущей частичной сумме; эмбеддинг служит отдельным источником.',link:'#s12'},
+  ln:{t:'ФИНАЛЬНАЯ LN',c:C.ink3,d:'Нормализация скрытого состояния перед LM-головой.'},
+  head:{t:'LM-ГОЛОВА → СЛЕДУЮЩИЙ ТОКЕН',c:C.mem,d:'Преобразует финальное скрытое состояние в логиты словаря. Из распределения следующего токена делают выбор — например, случайной выборкой (sampling) или через argmax при жадном декодировании, — после чего цикл повторяется.'}
+ };
+ function showInfo(id){const i=INFO[id];if(!i)return;
+  $('#f13dtext').innerHTML=`<b style="color:${i.c}">${i.t}</b><br><br>${i.d}`+(i.link?`<br><br><a href="${i.link}" style="font-family:var(--f-mono);font-size:10px">открыть раздел →</a>`:'');
+  $('#f13dtext').parentElement.querySelector('h4').className=i.c==='var(--ink3)'?'':'cg';
+  if(id==='attnres')$('#f13dtext').parentElement.querySelector('h4').classList.add('cg');
+ }
+ function interactive(el,id){el.style.cursor='pointer';el.setAttribute('role','button');el.setAttribute('tabindex','0');el.setAttribute('aria-label',INFO[id].t);el.addEventListener('click',()=>showInfo(id));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showInfo(id)}});return el}
+ function node(id,x,y,w,h,sub){const i=INFO[id];
+  if(!i){return box(g,x,y,w,h,'',sub||'',C.line,{'stroke-width':1,opacity:.5});}
+  const ng=sv('g',{},g);box(ng,x,y,w,h,i.t,sub||'',i.c,{'stroke-width':1.4});return interactive(ng,id)}
+ function draw(){
+  g.innerHTML='';gT=sv('g',{},g);apply();
+  const cx=245,mainX=130,mainW=230,moeX=400,moeW=160;
+  const down=(y1,y2)=>arrow(g,cx,y1,cx,y2,C.ink3);
+  const layerCenters=[],layerRows=[];
+  let y=24;
+  node('input',mainX,y,mainW,42,'b × t');y+=42;
+  down(y+2,y+16);y+=18;
+  node('emb',mainX,y,mainW,38,'WTE · d');y+=38;
+  down(y+2,y+16);y+=18;
+  txt(g,mainX,y+8,'КАЖДЫЙ СЛОЙ: СМЕШИВАНИЕ ТОКЕНОВ → СОБСТВЕННАЯ FFN / MoE',{'font-size':8,fill:C.ink3});y+=22;
+  // Показаны первая, условная средняя и последняя из 23 групп 3:1
+  const groupLabels=['группа 1 из 23','группы 2–22 · схематично','группа 23 из 23'];
+  for(let m=0;m<3;m++){
+   txt(g,moeX,y+9,groupLabels[m],{'font-size':8.5,fill:m===1?'#D9A441':C.ink3});y+=14;
+   const layers=[
+    ['kda',tech?'поканальное затухание Diag(α) · d_h=128':''],
+    ['kda',tech?'фикс. размер состояния · O(1) при декодировании':''],
+    ['kda',tech?'в Kimi Linear блок C = 64':''],
+    ['mla',tech?'Gated MLA · глобальный softmax':'']
+   ];
+   layers.forEach((L,l)=>{
+    const rowY=y;
+    node(L[0],mainX,rowY,mainW,32,L[1]);
+    const dense=m===0&&l===0;
+    node(dense?'dense':'moe',moeX,rowY,moeW,32,dense?(tech?'только слой 1':'только здесь'):(tech?'top-16/896 · 2 общих':'собственный MoE слоя'));
+    arrow(g,mainX+mainW,rowY+16,moeX-2,rowY+16,C.route,'3 3');
+    layerCenters.push(rowY+16);
+    layerRows.push({y:rowY,h:32});
+    y+=40;
+   });
+   y+=6;
+   if(m<2)y+=16;
+  }
+  // Финальный глобальный слой после 23 полных групп
+  y+=16;
+  node('mla',mainX,y,mainW,34,tech?'финальный слой · №93':'финальный глобальный слой');
+  node('moe',moeX,y,moeW,34,tech?'top-16/896 · 2 общих':'собственный MoE слоя');
+  arrow(g,mainX+mainW,y+17,moeX,y+17,C.route,'3 3');
+  layerCenters.push(y+17);layerRows.push({y,h:34});y+=34;
+  // Выход каждой FFN/MoE возвращается в основной тракт и поступает в следующий слой
+  layerRows.forEach((row,i)=>{
+   const exitY=row.y+row.h+4;
+   sv('path',{d:`M${moeX+moeW/2},${row.y+row.h} L${moeX+moeW/2},${exitY} L${cx},${exitY}`,stroke:C.route,'stroke-width':1.2,fill:'none','stroke-dasharray':'3 3'},g);
+   sv('circle',{cx,cy:exitY,r:2.2,fill:C.route},g);
+   const next=layerRows[i+1];if(next)arrow(g,cx,exitY,cx,next.y-2,C.ink3);
+  });
+  // Block AttnRes формирует вход каждого слоя, а не отдельный слой после стека
+  const railTop=layerCenters[0]-16,railBottom=layerCenters[layerCenters.length-1]+17;
+  layerCenters.forEach(cy=>arrow(g,84,cy,mainX-2,cy,C.res,'3 4'));
+  const rail=sv('g',{},g);sv('rect',{x:20,y:railTop,width:64,height:railBottom-railTop,rx:4,fill:'rgba(110,226,179,.07)',stroke:C.res,'stroke-width':1.4},rail);
+  const railMid=(railTop+railBottom)/2;
+  ['BLOCK','ATTNRES','ВХОД','КАЖДОГО','СЛОЯ'].forEach((line,i)=>txt(rail,52,railMid-28+i*14,line,{'text-anchor':'middle','font-size':8,fill:C.res}));interactive(rail,'attnres');
+  const finalExit=layerRows[layerRows.length-1].y+layerRows[layerRows.length-1].h+4;
+  down(finalExit,finalExit+14);y=finalExit+16;
+  node('ln',mainX,y,mainW,34,tech?'RMSNorm':'');y+=34;
+  down(y+2,y+16);y+=18;
+  node('head',mainX,y,mainW,46,'логиты → выборка (sampling) / argmax');y+=46;
+  // Авторегрессивная обратная связь справа
+  const loopX=572,headMid=y-23;
+  sv('path',{d:`M${mainX+mainW},${headMid} L${loopX},${headMid} L${loopX},34 L${mainX+mainW},34`,stroke:C.res,'stroke-width':1.4,fill:'none','stroke-dasharray':'5 5','marker-end':'url(#f13loop)'},g);
+  txt(g,loopX,28,'авторегрессивный цикл',{'text-anchor':'end','font-size':8.5,fill:C.res});
+  // Нижняя подпись в SVG с отступом от блока головы
+  y+=30;
+  txt(g,mainX,y,'основа K3 = память KDA + Gated MLA + Stable LatentMoE + Block AttnRes',{'font-size':9,fill:C.ink3});
+  y+=8;
+  if(tech){
+   const tl=[
+    '23 группы 3×KDA + 1×Gated MLA, затем финальный Gated MLA: 69 KDA + 24 MLA',
+    'Stable LatentMoE: 896 маршрутизируемых (16/токен) при ℓ=3584; 2 общих при d=7168',
+    'SiTU-GLU: β₁=4, β₂=25 · Block AttnRes: 8 блоков размером до 12 слоёв',
+    '~104 млрд активных параметров из 2,8 трлн всего · контекст 1 млн токенов'
+   ];
+   tl.forEach((l,i)=>txt(g,mainX,y+14+i*13,l,{'font-size':8.5,fill:C.ink2}));
+   y+=14+tl.length*13;
+  }
+  // Подгоняем холст точно под содержимое, без пустот и обрезки
+  s.setAttribute('viewBox',`0 0 620 ${y+16}`);
+ }
+ draw();
+ $('#f13mS').onclick=()=>{tech=false;$('#f13mS').classList.add('on');$('#f13mT').classList.remove('on');draw()};
+ $('#f13mT').onclick=()=>{tech=true;$('#f13mT').classList.add('on');$('#f13mS').classList.remove('on');draw()};
+ $('#f13zi').onclick=()=>{z=Math.min(3,z*1.25);apply()};
+ $('#f13zo').onclick=()=>{z=Math.max(.5,z/1.25);apply()};
+ $('#f13zr').onclick=()=>{z=1;tx=ty=0;apply()};
+ let drag=null,moved=false;
+ s.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,tx,ty,id:e.pointerId};moved=false});
+ s.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!moved&&Math.hypot(dx,dy)>4){moved=true;try{s.setPointerCapture(drag.id)}catch(_){}s.style.cursor='grabbing'}if(moved){tx=drag.tx+dx/z;ty=drag.ty+dy/z;apply()}});
+ const endDrag=()=>{if(drag&&moved){try{s.releasePointerCapture(drag.id)}catch(_){}}s.style.cursor='';drag=null;moved=false};
+ s.addEventListener('pointerup',endDrag);
+ s.addEventListener('pointercancel',endDrag);
+ s.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();z=Math.max(.5,Math.min(3,z*(e.deltaY<0?1.12:.89)));apply()}},{passive:false});
+})();
+
+/* ============ S14: КАРТА ЭВОЛЮЦИИ ============ */
+(function(){
+ const evo=$('#evo');if(!evo)return;
+ const N=[
+  {n:'GPT-2',y:'2019',p:'Без KV-кэша при декодировании пришлось бы заново вычислять предыдущие позиции; с кэшем их ключи и значения приходится хранить и перечитывать.',i:'Декодерный трансформер: внимание с softmax + MLP, остаточный поток.',b:'Универсальный масштабируемый предсказатель следующего токена — 124 млн параметров.',t:'Префилл внимания O(N²); KV-кэш растёт как O(N) и становится узким местом при декодировании.',l:'#s1'},
+  {n:'Внимание с softmax',y:'',p:'Как токенам вообще обмениваться информацией?',i:'Q·Kᵀ/√d_k, каузальная маска, softmax и взвешенные значения.',b:'Выразительное извлечение с адресацией по содержимому между позициями.',t:'Softmax стоит после q·k, поэтому каждый запрос связан с каждым ключом: N².',l:'#s2'},
+  {n:'Линейное внимание',y:'',p:'Связность N²: до FlashAttention полные матрицы оценок материализовались, а KV-кэш рос вместе с контекстом.',i:'Альтернативное положительное ядро φ = ELU+1 применяется к q и k отдельно, и вычисления перегруппируются: Q(KᵀV), фиксированное состояние d×d.',b:'Стоимость O(N), память декодирования O(1), растущего KV-кэша нет.',t:'ELU+1 менее выразителен, чем softmax; чисто аддитивное состояние создаёт помехи после заполнения ёмкости.',l:'#s5'},
+  {n:'DeltaNet',y:'идея 2021 · параллельная версия 2024',p:'У аддитивной памяти конечна ассоциативная ёмкость: новые записи постепенно усиливают интерференцию со старыми.',i:'Прочитать хранимое по ключу k и записать только дельту: Sₜ = (I − βₜkₜkₜᵀ)Sₜ₋₁ + βₜkₜvₜᵀ. Переходы ранга 1 позволяют выполнять блочное параллельное обучение.',b:'Направленная коррекция ассоциаций; линейное по времени обучение, эффективно использующее оборудование.',t:'Перезапись возможна только при наличии конкретной замены; нет общего затухания и очистки при смене контекста.',l:'#s6'},
+  {n:'Gated DeltaNet',y:'дек. 2024',p:'Нельзя очистить сразу несколько ассоциаций или ослабить память для освобождения ёмкости.',i:'Добавить вентиль в стиле Mamba-2: перед дельта-записью умножать предыдущее состояние на α.',b:'Состояние, ограниченное по величине, и адаптивное забывание при смене контекста.',t:'Скалярное затухание единообразно: все ассоциации исчезают одинаково, независимо от важности.',l:'#s7'},
+  {n:'KDA (Kimi Linear)',y:'окт. 2025',p:'Равномерное затухание не учитывает разную важность каналов.',i:'Поканальный диагональный вентиль Diag(αₜ) с отдельно настраиваемым затуханием и блочный алгоритм DPLR; гибрид KDA:MLA 3:1 с MoE.',b:'Первая линейная архитектура, превзошедшая полное внимание в контролируемых сравнениях; KV-кэш −75%, декодирование до 6 раз быстрее при контексте 1 млн токенов.',t:'Нужны сложные ядра FLA и тщательно спроектированный гибрид; ёмкость следует добавлять там, где у неё есть конкретная функция.',l:'#s8'},
+  {n:'MLA',y:'',p:'При длинном контексте память в основном занимает сам KV-кэш.',i:'Проецировать скрытое состояние x в общий латентный вектор c на токен, кэшировать c и получать ключи K и значения V повышающими проекциями. В K3 используется Gated MLA с полноранговым выходным вентилем.',b:'Адресное глобальное внимание через softmax при гораздо меньшем кэше.',t:'Дополнительные проекции; K и V восстанавливаются из сжатого представления, а кэш всё равно растёт как O(N).',l:'#s10'},
+  {n:'MoE',y:'',p:'Ёмкость была жёстко связана с объёмом вычислений на токен.',i:'Stable LatentMoE: 2 общих полноширинных эксперта и 896 маршрутизируемых в пространстве половинной ширины; для токена выбираются 16.',b:'2,8 трлн параметров всего, из них ~104 млрд активны для каждого токена — ёмкость без пропорциональных вычислений.',t:'Нужно управлять маршрутизацией и балансом нагрузки; SiTU-GLU и дополнительная нормализация усложняют реализацию.',l:'#s11'},
+  {n:'AttnRes',y:'',p:'В стандартной остаточной сумме коэффициенты всех вкладов равны 1; при сопоставимых величинах их условная доля уменьшается с глубиной, а избирательного доступа нет.',i:'Block AttnRes разделяет глубину на 8 блоков до 12 слоёв; каждый слой применяет softmax-внимание к завершённым суммам блоков и текущей частичной сумме.',b:'Избирательное извлечение по глубине при хранении O(числа блоков), а не O(числа слоёв).',t:'Нужны онлайн-объединение softmax, хранение блочных представлений и специализированные ядра.',l:'#s12'},
+  {n:'Kimi K3',y:'июль 2026',p:'Объединить фиксированную рекуррентную память, адресное глобальное внимание, разреженную ёмкость и устойчивый доступ по глубине.',i:'93 слоя: 69 KDA + 24 Gated MLA (23 группы 3:1 и финальный MLA); Stable LatentMoE с SiTU-GLU; Block AttnRes ×8.',b:'2,8 трлн параметров, ~104 млрд активных и контекст 1 млн токенов; каждый механизм закрывает отдельное узкое место.',t:'Высокая инженерная сложность: гибридные кэши, рекуррентные состояния, экспертная маршрутизация и специализированные ядра.',l:'#s13'}
+ ];
+ N.forEach(e=>{
+  const nd=div('enode');
+  nd.innerHTML=`<div class="eh"><span class="en">—</span><span class="et">${e.n}</span><span class="mid"><span class="ey">${e.y}</span><span class="chev">▾</span></span></div>
+  <div class="eb"><div class="ebi">
+   <div class="ecard p"><b>Проблема</b>${e.p}</div>
+   <div class="ecard i"><b>Идея</b>${e.i}</div>
+   <div class="ecard b"><b>Преимущество</b>${e.b}</div>
+   <div class="ecard t"><b>Цена решения</b>${e.t}</div>
+  </div><div style="padding:0 18px 4px"><a class="elink" href="${e.l}">ПЕРЕЙТИ К РАЗДЕЛУ →</a></div></div>`;
+  nd.querySelector('.eh').onclick=()=>{const was=nd.classList.contains('open');$$('.enode').forEach(x=>x.classList.remove('open'));if(!was)nd.classList.add('open')};
+  evo.appendChild(nd);
+ });
+})();
+
+/* ============ S15: СЛОЖНОСТЬ ============ */
+(function(){
+ const chA=$('#f15chartA');if(!chA)return;
+ const dh=128,h=16,L=32,dc=512,Cc=64;
+ const CURVES_A=[
+  {id:'a1',name:'FLOP полного внимания · 2N²d_h',col:C.attn,dash:null,f:N=>2*N*N*dh},
+  {id:'a2',name:'FLOP KDA · 6Nd_h²+3NCd_h+NC²',col:C.mem,dash:null,f:N=>6*N*dh*dh+3*N*Cc*dh+N*Cc*Cc}
+ ];
+ const CURVES_B=[
+  {id:'b1',name:'матрицы оценок · N²Lh (до FlashAttention)',col:C.attn,dash:null,f:N=>N*N*L*h},
+  {id:'b2',name:'служебные softmax-статистики FlashAttention · NLh',col:C.attn,dash:'5 4',f:N=>N*L*h},
+  {id:'b3',name:'полный KV-кэш · 2NLh·d_h',col:C.mem,dash:null,f:N=>2*N*L*h*dh},
+  {id:'b4',name:'латентный кэш · N·L·d_c',col:C.latent,dash:null,f:N=>N*L*dc},
+  {id:'b5',name:'состояния KDA · Lh·d_h² (фикс.)',col:C.res,dash:'2 3',f:N=>L*h*dh*dh}
+ ];
+ const on={};
+ CURVES_A.concat(CURVES_B).forEach(c=>on[c.id]=true);
+ function chart(el,title,curves,unit){
+  el.innerHTML='';
+  const W=820,H=300,ml=64,mt=34,mr=24,mb2=34;
+  const s=sv('svg',{viewBox:`0 0 ${W} ${H}`});el.appendChild(s);
+  const g=sv('g',{},s);
+  txt(g,ml-8,16,title,{'font-size':10,fill:C.ink3});
+  const x2p=n=>ml+(Math.log2(n)-8)/(20-8)*(W-ml-mr);
+  const y2p=v=>H-mb2-(Math.log10(Math.max(1,v))-2)/(15-2)*(H-mt-mb2);
+  // Оси
+  g.appendChild(sv('line',{x1:ml,y1:H-mb2,x2:W-mr,y2:H-mb2,stroke:C.line}));
+  g.appendChild(sv('line',{x1:ml,y1:H-mb2,x2:ml,y2:mt,stroke:C.line}));
+  [8,10,12,14,16,18,20].forEach(p=>{const n=2**p;txt(g,x2p(n),H-mb2+16,fmtCount(n),{'text-anchor':'middle','font-size':8.5,fill:C.ink3});g.appendChild(sv('line',{x1:x2p(n),y1:H-mb2,x2:x2p(n),y2:H-mb2+3,stroke:C.line}))});
+  [2,5,8,11,14].forEach(p=>{txt(g,ml-10,y2p(10**p)+3,'10'+p.toString().split('').map(x=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[+x]).join(''),{'text-anchor':'end','font-size':8.5,fill:C.ink3})});
+  txt(g,ml-46,mt+4,unit,{'font-size':8,fill:C.ink3});
+  // Кривые
+  const state={pts:{}};
+  curves.forEach(c=>{
+   if(!on[c.id])return;
+   let d='';
+   for(let p=8;p<=20;p+=.25){const n=2**p;d+=(d?' L':'M')+x2p(n)+','+y2p(c.f(n))}
+   const path=sv('path',{d,stroke:c.col,'stroke-width':1.8,fill:'none'},g);
+   if(c.dash)path.setAttribute('stroke-dasharray',c.dash);
+   state.pts[c.id]=curves.map(()=>null);
+  });
+  // Указатель
+  const N=2**(+$('#f15slider').value);
+  const cl=sv('line',{x1:x2p(N),y1:mt,x2:x2p(N),y2:H-mb2,stroke:'#D9A441','stroke-width':1.2,'stroke-dasharray':'3 3'},g);
+  curves.forEach(c=>{
+   if(!on[c.id])return;
+   sv('circle',{cx:x2p(N),cy:y2p(c.f(N)),r:3.5,fill:c.col,stroke:'#0B0F1C','stroke-width':1.5},g);
+  });
+  return{curves,N};
+ }
+ function legend(el,curves){
+  el.innerHTML='';
+  curves.forEach(c=>{const b=document.createElement('button');b.className='on';b.textContent=c.name;b.style.cssText+=';color:'+c.col+';border-color:'+c.col+'66;text-transform:none;letter-spacing:0;font-size:9.5px';
+   b.onclick=()=>{on[c.id]=!on[c.id];b.classList.toggle('on',on[c.id]);update()};
+   if(!on[c.id])b.classList.remove('on');
+   el.appendChild(b)});
+ }
+ function update(){
+  const rA=chart(chA,'ВЫЧИСЛЕНИЯ (относительные единицы, лог–лог)',CURVES_A,'FLOP ↓');
+  const rB=chart($('#f15chartB'),'ПАМЯТЬ (относительные единицы, лог–лог)',CURVES_B,'ячейки ↓');
+  legend($('#f15legend'),CURVES_A);legend($('#f15legendB'),CURVES_B);
+  const N=rA.N;
+  $('#f15n').textContent=N.toLocaleString('ru-RU');
+  const lines=[`N = ${N.toLocaleString('ru-RU')} токенов   [УЧЕБНЫЙ ПРИМЕР: d_h=${dh}, h=${h}, L=${L}, d_c=${dc}, C=${Cc}; вычисления — на голову, память — для всех h голов/слоёв]`];
+  CURVES_A.concat(CURVES_B).filter(c=>on[c.id]).forEach(c=>{lines.push(`<span style="color:${c.col}">■</span> ${c.name}: <b>${fmtBig(c.f(N))}</b>`)});
+  $('#f15read').innerHTML=lines.join('\n');
+ }
+ $('#f15slider').oninput=update;update();
+ // Блок C
+ const cb=$('#f15bbody');
+ function chunkChart(){
+  cb.innerHTML='';
+  const blockSize=+$('#f15cslider').value;$('#f15c').textContent=blockSize;
+  const T=4096,d=128;
+  const stateWork=6*T*d*d,chunkMatmul=3*T*blockSize*d,chunkSquare=T*blockSize*blockSize;
+  const total=stateWork+chunkMatmul+chunkSquare,full=2*T*T*d;
+  const rows=[
+   ['базовая работа · 6Td_h²',stateWork,C.mem],
+   ['блочные матмулы · 3TCd_h',chunkMatmul,C.attn],
+   ['внутриблочная часть · TC²',chunkSquare,C.route],
+   ['всего для KDA',total,'#D9A441']
+  ];
+  const mx=Math.max(full,total);
+  const wrap=div('');wrap.style.cssText='max-width:640px';
+  rows.forEach(r=>{const b=div('brow f15brow');b.innerHTML=`<span>${r[0]}</span>`;const tr=div('trk');const fl=div('fl');fl.style.width=Math.max(.5,r[1]/mx*100)+'%';fl.style.background=r[2];tr.appendChild(fl);b.appendChild(tr);b.appendChild(div('',fmtBig(r[1])));wrap.appendChild(b)});
+  const q=div('brow f15brow');q.innerHTML=`<span style="color:var(--ink3)">для сравнения: полное внимание · 2T²d_h</span>`;const tr=div('trk');const fl=div('fl');fl.style.width=full/mx*100+'%';fl.style.background=C.attn;fl.style.opacity=.3;tr.appendChild(fl);q.appendChild(tr);q.appendChild(div('',fmtBig(full)));wrap.appendChild(q);
+  cb.appendChild(wrap);
+  const sweet=(blockSize>=64&&blockSize<=128);
+  cb.appendChild(div('note',`T = ${T.toLocaleString('ru-RU')}, C = ${blockSize} → ${blockSize===1?'минимум теоретических FLOP по C, но плохое использование матричных блоков GPU':sweet?'<b style="color:var(--res)">эффективная для тензорных ядер / UMMA область</b> — FLOP больше минимума, но фактическое время обычно ниже':'компромисс между внутриблочной работой и загрузкой оборудования'}<br><span style="color:var(--amber)">В Kimi Linear используется C=64 [ИСТОЧНИК]. Если гипотетически положить C=T, член TC² станет квадратичным, однако алгоритм KDA не станет softmax-вниманием. Асимптотика не определяет реальное время выполнения.</span>`));
+ }
+ $('#f15cslider').oninput=chunkChart;chunkChart();
+})();
+
+/* ============ S16: ПРЕФИЛЛ / ДЕКОДИРОВАНИЕ ============ */
+(function(){
+ const stage=$('#f16stage');if(!stage)return;
+ let phase='pre',mech='std',step=0,timer=null;
+ const CAPS={
+  std:['СТАНДАРТНЫЙ МЕХАНИЗМ ВНИМАНИЯ','префилл: весь промпт обрабатывается сразу; каузальная матрица заполняется строка за строкой, O(N²) вычислений на слой.','декодирование: один новый токен сравнивается с каждым ключом в кэше; 2·N·D чтений на шаг, KV-кэш растёт на один столбец.'],
+  lin:['ЛИНЕЙНОЕ ВНИМАНИЕ','префилл: токены блок за блоком сворачиваются в состояния; матрица N×N не создаётся.','декодирование: один токен обновляет фиксированное состояние d×d; память O(1), одна запись состояния.'],
+  kda:['DeltaNet / KDA','префилл: каждый блок обрабатывается вниманием внутри блока и межблочными обновлениями состояния с дельта-поправками β и затуханием Diag(α).','декодирование: для одного токена состояние поканально ослабляется, затем вычисляется дельта относительно хранимого по его ключу и записывается разница.'],
+  mla:['MLA','префилл: скрытые состояния проецируются в один латентный вектор c на токен; кэш заполняется в латентном пространстве.','декодирование: одна новая латентная ячейка; при чтении из кэша внимание получает K̂ и V̂ повышающими проекциями.']
+ };
+ function build(){
+  clearInterval(timer);timer=null;$('#f16step').textContent='Шаг';
+  stage.innerHTML='';
+  const s=sv('svg',{viewBox:'0 0 880 250'});stage.appendChild(s);
+  const g=sv('g',{},s);
+  const toks=['t1','t2','t3','t4','t5','t6','t7','t8'];
+  // Лента токенов
+  txt(g,14,22,'ТОКЕНЫ ПРОМПТА (показано t = 8)',{'font-size':8.5,fill:C.ink3});
+  toks.forEach((t,i)=>{sv('rect',{x:14+i*62,y:28,width:54,height:22,rx:3,fill:mech==='mla'?'rgba(56,198,214,.15)':mech==='std'?'rgba(95,168,255,.13)':'rgba(167,139,250,.13)',stroke:mech==='mla'?C.latent:mech==='std'?C.attn:C.mem},g);txt(g,41+i*62,43,t,{'text-anchor':'middle','font-size':9,fill:C.ink})});
+  if(phase==='dec'){sv('rect',{x:14+8*62,y:28,width:54,height:22,rx:3,fill:'rgba(217,164,65,.15)',stroke:'#D9A441'},g);txt(g,41+8*62,43,'новый',{'text-anchor':'middle','font-size':9,fill:'#D9A441'})}
+  const items=[]; // Элементы, которые открываются по шагам
+  if(mech==='std'){
+   if(phase==='pre'){
+    txt(g,14,86,'КАУЗАЛЬНАЯ МАТРИЦА ОЦЕНОК (8×8) — на каждом шаге одна строка оценок для запроса:',{'font-size':8.5,fill:C.attn});
+    for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+     const c=sv('rect',{x:14+j*40,y:94+i*18,width:36,height:15,rx:2,fill:j<=i?'rgba(95,168,255,.5)':'rgba(148,168,214,.06)',stroke:j<=i?C.attn:C.line},g);
+     if(j>i){sv('path',{d:`M${16+j*40},${96+i*18+12} l8,-8 m0,8 l-8,-8`,stroke:'rgba(148,168,214,.25)','stroke-width':1},g)}
+     if(step>0&&i===Math.min(step-1,7)&&j<=i)c.classList.add('pulse');
+    }
+    txt(g,14+360,120,'каждая строка: один запрос оценивает все ключи',{'font-size':8.5,fill:C.ink3});
+    txt(g,14+360,140,'верхний треугольник = будущее (маска, −∞)',{'font-size':8.5,fill:C.ink3});
+   }else{
+    txt(g,14,86,'KV-КЭШ — один новый столбец на шаг декодирования:',{'font-size':8.5,fill:C.attn});
+    ['K','V'].forEach((rw,r)=>{
+     for(let i=0;i<9;i++){
+      const c=sv('rect',{x:14+i*58,y:94+r*44,width:50,height:36,rx:2,fill:i<8?'rgba(95,168,255,.25)':'rgba(217,164,65,.2)',stroke:i<8?C.attn:'#D9A441'},g);
+      if(i>=step+8-8)0;
+      c.style.opacity=(i<8||i===8)?(i<=7+step?1:.15):1;
+      if(i===8+0&&step>0)c.style.opacity=1;
+      txt(g,39+i*58,116+r*44,rw.toLowerCase()+i,{'text-anchor':'middle','font-size':8,fill:C.ink3});
+     }
+    });
+    // Стрелки чтения
+    for(let i=0;i<8;i++){const a=arrow(g,506,110,480-(7-i)*58+25,112,C.attn,'3 3');if(i<step)a.classList.add('flow')}
+    txt(g,866,80,'новый токен читает все N сохранённых ключей и значений: 2·N·D элементов/шаг',{'text-anchor':'end','font-size':8.5,fill:'#D9A441'});
+   }
+  }else if(mech==='lin'||mech==='kda'){
+   const col=mech==='kda'?C.mem:C.mem;
+   if(phase==='pre'){
+    txt(g,14,86,'БЛОЧНЫЙ ПРЕФИЛЛ — 4 блока по C=2, каждый сворачивается в состояние:',{'font-size':8.5,fill:col});
+    for(let c=0;c<4;c++){
+     box(g,14+c*150,100,84,44,'блок '+(c+1),'токены',C.attn);
+     arrow(g,98+c*150,122,124+c*150,122,col);
+     const st=box(g,126+c*150,100,44,44,'S'+(c+1),'',col);if(c<step)st.classList.add('pulse');
+     if(mech==='kda'){txt(g,14+c*150,166,'β дельта · Diag(α)',{'font-size':7.5,fill:C.route})}
+    }
+    arrow(g,170,88,300,88,col,'3 3');txt(g,196,82,'S переносится дальше',{'font-size':7.5,fill:col});
+   }else{
+    txt(g,14,86,'ЕДИНОЕ СОСТОЯНИЕ — одно обновление фиксированного состояния на токен, O(1):',{'font-size':8.5,fill:col});
+    const st=box(g,120,100,110,64,'СОСТОЯНИЕ S','d × d · фикс.',col);
+    if(step>0)st.classList.add('pulse');
+    arrow(g,60,132,116,132,col);arrow(g,232,132,300,132,col);
+    if(mech==='kda'){
+     const gb=box(g,320,100,120,44,'затухание Diag(α)','',C.route);
+     const db=box(g,320,160,120,44,'дельта-запись u','',C.mem);
+     txt(g,460,124,'S ← (I − βkkᵀ)·Diag(α)·S + βkvᵀ',{'font-size':8.5,fill:C.ink3});
+     txt(g,460,144,'поканальное затухание → избирательное забывание',{'font-size':8,fill:C.route});
+    }else{
+     txt(g,320,124,'S ← S + φ(k)ᵀ·v',{'font-size':9.5,fill:C.ink2});
+     txt(g,320,144,'только накопление — помехи при заполнении ёмкости (→ §06)',{'font-size':8,fill:C.ink3});
+    }
+   }
+  }else{ // MLA
+   if(phase==='pre'){
+    txt(g,14,86,'ЛАТЕНТНЫЙ КЭШ — одна сжатая ячейка на токен (сжатый префилл):',{'font-size':8.5,fill:C.latent});
+    for(let i=0;i<8;i++){
+     const c=sv('rect',{x:14+i*80,y:100,width:70,height:44,rx:3,fill:'rgba(56,198,214,.18)',stroke:C.latent},g);
+     txt(g,49+i*80,126,'c'+i,{'text-anchor':'middle','font-size':9,fill:C.latent});
+     if(step>0&&i===Math.min(step-1,7))c.classList.add('pulse');
+    }
+    txt(g,14,170,'скрытое состояние x → проекция W_c → один латентный вектор c на токен (d_c ≪ d)',{'font-size':8.5,fill:C.ink3});
+    box(g,700,100,120,44,'повыш. проекция','W_UK · W_UV',C.latent);
+    arrow(g,670,122,698,122,C.latent);
+   }else{
+    txt(g,14,86,'ДЕКОДИРОВАНИЕ — новая латентная ячейка; K̂, V̂ восстанавливаются при чтении из кэша:',{'font-size':8.5,fill:C.latent});
+    for(let i=0;i<9;i++){
+     sv('rect',{x:14+i*70,y:100,width:60,height:44,rx:3,fill:i<8?'rgba(56,198,214,.18)':'rgba(217,164,65,.2)',stroke:i<8?C.latent:'#D9A441'},g);
+     txt(g,44+i*70,126,i<8?'c'+i:'новый',{'text-anchor':'middle','font-size':8.5,fill:i<8?C.latent:'#D9A441'});
+    }
+    box(g,700,100,130,44,'W_UK / W_UV','→ K̂, V̂',C.latent);
+    for(let i=0;i<9;i++){const a=arrow(g,60+i*70,150,80+i*70,166,C.latent,'2 3')}
+    txt(g,866,190,'кэш растёт как O(N), его доля от полного KV-кэша равна d_c/(2d)',{'text-anchor':'end','font-size':8.5,fill:C.ink3});
+   }
+  }
+  const cap=CAPS[mech][phase==='pre'?1:2];
+  $('#f16cap').innerHTML='<b>'+CAPS[mech][0]+' · '+(phase==='pre'?'ПРЕФИЛЛ':'ДЕКОДИРОВАНИЕ')+'</b> — '+cap;
+  $('#f16read').innerHTML=`фаза: <span class="hl">${phase==='pre'?'ПРЕФИЛЛ (весь промпт)':'ДЕКОДИРОВАНИЕ (один токен)'}</span>\nмеханизм: <span class="hv">${CAPS[mech][0]}</span>\nшаг: ${step}${phase==='pre'&&mech==='std'?' из 8 строк':''}`;
+ }
+ $('#f16pre').onclick=()=>{phase='pre';step=0;$('#f16pre').classList.add('on');$('#f16dec').classList.remove('on');build()};
+ $('#f16dec').onclick=()=>{phase='dec';step=0;$('#f16dec').classList.add('on');$('#f16pre').classList.remove('on');build()};
+ $('#f16mech').onchange=e=>{mech=e.target.value;step=0;build()};
+ $('#f16step').onclick=function(){
+  step++;
+  const max=phase==='pre'?((mech==='lin'||mech==='kda')?4:8):(mech==='std'?8:1);
+  if(step>max)step=0;
+  build();
+  // Эффект пульсации задаётся в build через номер шага
+ };
+ $('#f16reset').onclick=()=>{step=0;build()};
+ build();
+})();
+
+/* ============ S17: МАТЕМАТИЧЕСКИЙ ПРАКТИКУМ ============ */
+(function(){
+ const pipe=$('#f17pipe'),mats=$('#f17mats');if(!pipe)return;
+ let tab='att',step=0;
+ // Пример внимания: T=4, dk=4
+ const rng=mulberry32(2024);
+ const T=4,DK=4;
+ const W=['a','b','c','d'];
+ const Q=[],K=[],V=[];
+ for(let i=0;i<T;i++){Q.push(Array.from({length:DK},()=>rng()*2-1));K.push(Array.from({length:DK},()=>rng()*2-1));V.push(Array.from({length:DK},()=>rng()*2-1))}
+ function grid(el,mat,title,col,mask){
+  const w=div('');w.style.maxWidth='230px';
+  w.appendChild(div('hint',title));
+  const m=div('mgrid');m.style.gridTemplateColumns=`repeat(${mat[0].length},44px)`;
+  const mx=Math.max(...mat.flat().map(v=>Math.abs(v)),.001);
+  mat.forEach((row,i)=>row.forEach((v,j)=>{
+   const c=div('mcell'+(mask&&mask[i][j]?' masked':''));
+   c.style.width='44px';c.style.height='30px';
+   if(!(mask&&mask[i][j]))c.style.background=col?`rgba(${col},${(0.06+Math.min(1,Math.abs(v)/mx)*0.7).toFixed(2)})`:'rgba(148,168,214,.1)';
+   if(v<-1e8){c.textContent='−∞';c.style.fontSize='8px';c.style.color=C.ink3;c.style.background='repeating-linear-gradient(45deg,rgba(148,168,214,.10) 0 3px,transparent 3px 7px)'}
+   else c.textContent=fmt(v);
+   m.appendChild(c);
+  }));
+  w.appendChild(m);el.appendChild(w);return w;
+ }
+ function stages(){
+  pipe.innerHTML='';
+  const st=tab==='att'?['оценки Q·Kᵀ','÷ √d_k','маска M','softmax','× V → выход']:['состояние Sₜ₋₁','чтение v_old=k·S','дельта u=β(v−v_old)','запись Sₜ=Sₜ₋₁+kᵀu','выход o=q·Sₜ'];
+  st.forEach((s,i)=>{
+   const b=document.createElement('button');
+   b.textContent=(i+1)+'. '+s;
+   b.className=i===step?'on':'';
+   b.onclick=()=>{step=i;render()};
+   pipe.appendChild(b);
+  });
+ }
+ function render(){
+  stages();
+  mats.innerHTML='';
+  if(tab==='att'){
+   const sc=[],scl=[];
+   for(let i=0;i<T;i++){sc.push(K.map((k,j)=>{let d=0;for(let z=0;z<DK;z++)d+=Q[i][z]*k[z];return d}));scl.push(sc[i].map(v=>v/Math.sqrt(DK)))}
+   const maskM=Q.map((_,i)=>K.map((_,j)=>j>i));
+   const sm=scl.map((r,i)=>softmax(r,maskM[i]));
+   const out=sm.map((r,i)=>Array.from({length:DK},(_,z)=>r.reduce((a,w,j)=>a+w*V[j][z],0)));
+   const D={};
+   grid(mats,sc,'1 · ОЦЕНКИ Q·Kᵀ','95,168,255');
+   if(step>=1)grid(mats,scl.map(r=>r.map(fmt2)),'2 · МАСШТАБИРОВАНИЕ ÷√'+DK,'95,168,255');
+   if(step>=2)grid(mats,scl.map(r=>r.map(v=>v)),'3 · + МАСКА M','95,168,255',maskM);
+   if(step>=3)grid(mats,sm.map(r=>r.map(fmt2)),'4 · SOFTMAX (сумма строки = 1)','95,168,255');
+   if(step>=4)grid(mats,out,'5 · ВЫХОД = W·V','70,194,136');
+   mats.appendChild(div('note',step===0?'оценки = исходные скалярные произведения qᵢ·kⱼ — наведите указатель на Q, K, √d_k, M в формуле §02, чтобы подсветить этапы':step===3?'softmax преобразует элементы каждой строки в веса: экспонента, затем нормализация; маскированные ячейки строго равны нулю':'строки выхода: каждый токен получает взвешенную смесь всех видимых значений'));
+  }else{
+   const{data,stateAt,BETA,toks}=Delta;
+   const t=2,{k,v,q}=data[t-1];
+   const Sprev=stateAt(t-1,null);
+   const vo=Delta.mul(k,Sprev);
+   const u=v.map((x,j)=>BETA*(x-vo[j]));
+   const Snew=Sprev.map((r,ri)=>r.map((x,ci)=>x+k[ri]*u[ci]));
+   const o=Delta.mul(q,Snew);
+   grid(mats,Sprev,'1 · СОСТОЯНИЕ Sₜ₋₁ (d×d)');
+   if(step>=1)grid(mats,[vo],'2 · ЧТЕНИЕ v_old = k·Sₜ₋₁');
+   if(step>=2)grid(mats,[u],'3 · ДЕЛЬТА u = β(v−v_old)');
+   if(step>=3)grid(mats,Snew,'4 · ЗАПИСЬ Sₜ = Sₜ₋₁+kᵀu');
+   if(step>=4)grid(mats,[o],'5 · ВЫХОД o = q·Sₜ');
+   mats.appendChild(div('note',`одна операция, токен «${toks[t-1]}» (t=${t}) · v_old=[${vo.map(fmt).join(', ')}] · u=[${u.map(fmt).join(', ')}] · o=[${o.map(fmt).join(', ')}]`));
+  }
+  function fmt2(v){return +v.toFixed(2)}
+ }
+ $('#f17tA').onclick=()=>{tab='att';step=0;$('#f17tA').classList.add('on');$('#f17tB').classList.remove('on');render()};
+ $('#f17tB').onclick=()=>{tab='del';step=0;$('#f17tB').classList.add('on');$('#f17tA').classList.remove('on');render()};
+ $('#f17next').onclick=()=>{if(step<4){step++;render()}};
+ $('#f17prev').onclick=()=>{if(step>0){step--;render()}};
+ $('#f17reset').onclick=()=>{step=0;render()};
+ document.addEventListener('sym',e=>{
+  const{key,on}=e.detail;
+  const map={'kx-symQ':0,'kx-symK':0,'kx-symKT':0,'kx-symDK':1,'kx-symM':2,'kx-symSM':3,'kx-symV':4};
+  if(tab==='att'&&map[key]!=null){
+   $$('#f17pipe button').forEach((b,i)=>b.classList.toggle('on',on?i===map[key]:i===step));
+  }
+  if(tab==='del'&&['kx-symS','kx-symB','kx-symKt','kx-symVt'].includes(key)){
+   const m={'kx-symS':0,'kx-symB':2,'kx-symKt':1,'kx-symVt':2};
+   $$('#f17pipe button').forEach((b,i)=>b.classList.toggle('on',on?i===m[key]:i===step));
+  }
+ });
+ render();
+})();
+
+/* ============ S18: СРАВНЕНИЯ ============ */
+(function(){
+ const tabs=$('#f18tabs'),body=$('#f18body');if(!body)return;
+ function motif(id,before,el){
+  const s=sv('svg',{viewBox:'0 0 340 165'});el.appendChild(s);
+  const g=sv('g',{},s);
+  const sq=(x,y,w,h,col,fill)=>sv('rect',{x,y,width:w,height:h,rx:2,fill:fill||col+'33',stroke:col},g);
+  if(id==='std'){
+   if(before){sq(40,30,90,90,C.attn);sv('path',{d:'M40,120 L40,30 L130,120 Z',fill:C.attn+'44'},g);txt(g,85,140,'N×N при префилле',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+   else{sq(60,45,50,50,C.mem);txt(g,85,112,'фикс. состояние d×d',{'text-anchor':'middle','font-size':8,fill:C.mem});for(let i=0;i<4;i++)sq(140,50+i*14,80,10,C.attn,'rgba(95,168,255,.15)');txt(g,180,120,'ключи и значения сворачиваются в S',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+  }
+  if(id==='lin'){
+   if(before){for(let i=0;i<5;i++)sq(40+i*22,40,18,60,C.mem,'rgba(167,139,250,.2)');txt(g,90,120,'накопление — рост и помехи',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+   else{sq(60,45,50,50,C.mem);for(let i=0;i<3;i++)sv('line',{x1:60+i*17,y1:45,x2:60+i*17,y2:95,stroke:'rgba(167,139,250,.4)'},g);txt(g,85,112,'дельта — чтение, затем разница',{'text-anchor':'middle','font-size':8,fill:C.mem})}
+  }
+  if(id==='gdn'){
+   if(before){sq(60,40,60,60,C.mem);txt(g,90,115,'один скаляр α для всего',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+   else{sq(50,40,80,60,C.mem);for(let i=0;i<8;i++){const b=sv('rect',{x:54+i*9,y:56,width:6,height:28,fill:C.route,opacity:.3+((i*7)%10)/14},g)}txt(g,170,130,'поканальное затухание',{'text-anchor':'middle','font-size':8,fill:C.route});txt(g,170,144,'Diag(α): тонкая настройка',{'text-anchor':'middle','font-size':8,fill:C.route})}
+  }
+  if(id==='mla'){
+   if(before){for(let i=0;i<7;i++){sq(40,26+i*15,100,11,C.attn,'rgba(95,168,255,.2)');sq(160,26+i*15,100,11,'#8FC0FF','rgba(143,192,255,.15)')}txt(g,150,142,'K + V: 2·N·d элементов',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+   else{for(let i=0;i<7;i++)sq(70,26+i*15,90,11,C.latent,'rgba(56,198,214,.22)');txt(g,170,140,'латентный вектор на токен: N·d_c элементов',{'text-anchor':'middle','font-size':8,fill:C.latent});txt(g,170,154,'d_c ≪ d',{'text-anchor':'middle','font-size':8,fill:C.latent});arrow(g,165,70,210,70,C.latent)}
+  }
+  if(id==='moe'){
+   if(before){sq(60,30,220,90,C.mem,'rgba(167,139,250,.12)');txt(g,170,80,'одна плотная FFN — каждый токен платит за всю ширину',{'text-anchor':'middle','font-size':8.5,fill:C.ink3})}
+   else{sq(40,60,30,30,C.res,'rgba(70,194,136,.2)');for(let i=0;i<4;i++)sq(100,25+i*26,60,20,i%2?C.route:C.attn,i%2?'rgba(240,147,63,.2)':'rgba(95,168,255,.18)');arrow(g,72,75,98,55,C.route);txt(g,185,140,'маршрутизатор → top-k из многих экспертов',{'text-anchor':'middle','font-size':8,fill:C.route})}
+  }
+  if(id==='res'){
+   if(before){for(let i=0;i<7;i++){sq(50,20+i*17,150,10,C.attn,'rgba(95,168,255,'+(0.55-i*0.06)+')')}txt(g,170,150,'коэффициенты 1 · условные доли уменьшаются',{'text-anchor':'middle','font-size':8,fill:C.ink3})}
+   else{const hs=[.9,.2,.5,.1,.7,.3,.6];hs.forEach((h,i)=>sq(50,20+i*17,150,10,C.res,'rgba(70,194,136,'+h+')'));txt(g,170,140,'α = softmax(q·k)',{'text-anchor':'middle','font-size':8,fill:C.res});txt(g,170,154,'избирательное извлечение',{'text-anchor':'middle','font-size':8,fill:C.res})}
+  }
+  return s;
+ }
+ const CMP=[
+  {id:'std',t:'Стандартный и линейный механизмы внимания',lt:'СТАНДАРТНЫЙ — (QKᵀ)V',rt:'ЛИНЕЙНЫЙ — Q(KᵀV)',lc:C.attn,rc:C.mem,
+   ch:'Softmax, применяемый после произведения q·k, заменяется отдельными отображениями φ(q) и φ(k), поэтому вычисления можно перегруппировать.',
+   why:'Матрица N×N больше не нужна: K и V сворачиваются в фиксированное состояние d×d.',
+   bet:'Стоимость O(N), память декодирования O(1), растущего KV-кэша нет.',
+   hard:'φ = ELU+1 — менее выразительное ядро; при заполнении ёмкости аддитивное состояние создаёт помехи.'},
+  {id:'lin',t:'Линейное внимание и DeltaNet',lt:'ТОЛЬКО НАКОПЛЕНИЕ',rt:'СОСТОЯНИЕ ПО ДЕЛЬТА-ПРАВИЛУ',lc:C.mem,rc:C.mem,
+   ch:'Новые записи просто добавлялись → теперь каждая запись сначала считывает сохранённое значение по своему ключу и записывает только разницу.',
+   why:'«Бесконечное добавление ассоциаций в конечную память неизбежно достигает предела» — возникают помехи.',
+   bet:'Точные направленные обновления; блочное параллельное обучение благодаря репараметризации Хаусхолдера.',
+   hard:'Перезапись возможна только при конкретной замене; общего затухания нет.'},
+  {id:'gdn',t:'DeltaNet и Gated DeltaNet',lt:'ДЕЛЬТА — БЕЗ ЗАТУХАНИЯ',rt:'ВЕНТИЛЬ — ЗАТУХАНИЕ α + ДЕЛЬТА',lc:C.mem,rc:C.route,
+   ch:'Ничего не удалялось без замены → перед каждой дельта-записью предыдущее состояние умножается на α.',
+   why:'При смене контекста и нехватке ёмкости нужно забывание, а не только перезапись.',
+   bet:'Состояние, ограниченное по величине; сочетание вентилей Mamba-2 с точностью дельта-правила.',
+   hard:'Скаляр α ослабляет все каналы одинаково, не учитывая их важность.'},
+  {id:'gdn2',t:'Gated DeltaNet и KDA',lt:'СКАЛЯРНЫЙ ВЕНТИЛЬ α',rt:'ПОКАНАЛЬНОЕ ЗАТУХАНИЕ Diag(α)',lc:C.route,rc:C.route,
+   ch:'Одно значение затухания для всего состояния → отдельный обучаемый коэффициент затухания для каждого канала.',
+   why:'Каналы несут разную информацию с разным сроком жизни; равномерное затухание тратит ёмкость впустую.',
+   bet:'Более тонкое управление затуханием памяти — основа превосходства Kimi Linear над полным вниманием в контролируемых сравнениях.',
+   hard:'Больше параметров и более сложная параллелизация — блочный алгоритм DPLR.'},
+  {id:'mla',t:'Полный KV-кэш и MLA',lt:'ОБЫЧНЫЙ KV-КЭШ',rt:'ЛАТЕНТНО-СЖАТЫЙ КЭШ',lc:C.attn,rc:C.latent,
+   ch:'Полноразмерные K и V хранились на токен → теперь они сжимаются в один общий латентный вектор и восстанавливаются при чтении из кэша.',
+   why:'При контексте длиной 1 млн токенов именно кэш начинает определять расход памяти.',
+   bet:'Сокращение объёма KV-кэша на величину до 75% и повышение пропускной способности декодирования до шестикратного уровня по опубликованным данным.',
+   hard:'Извлечение проходит через сжатие; на каждом слое нужны дополнительные проекции.'},
+  {id:'moe',t:'Плотная FFN и MoE',lt:'ПЛОТНАЯ FFN',rt:'МАРШРУТИЗИРУЕМЫЕ ЭКСПЕРТЫ',lc:C.mem,rc:C.route,
+   ch:'Каждый токен проходил через всю ширину сети → теперь маршрутизатор выбирает top-k экспертов для токена.',
+   why:'Отделить ёмкость от объёма вычислений на токен.',
+   bet:'K3: всего 2,8 трлн параметров, из них ~104 млрд активны для каждого токена; в каждом MoE-слое 898 экспертов, включая 2 общих и 16 выбранных маршрутизируемых на токен.',
+   hard:'Нужно управлять балансом нагрузки, нестабильностью маршрутизации и специализацией экспертов.'},
+  {id:'res',t:'Стандартный остаточный поток и AttnRes',lt:'СУММА С КОЭФФИЦИЕНТАМИ 1',rt:'ОБУЧАЕМОЕ ИЗВЛЕЧЕНИЕ',lc:C.attn,rc:C.res,
+   ch:'h = h₁ + Σfᵢ(hᵢ), каждый коэффициент равен 1 → α = softmax(q·k) по выходам предыдущих блоков.',
+   why:'При сопоставимых по величине вкладах условная нормированная доля одного слоя уменьшается с глубиной; избирательного доступа к отдельным представлениям нет.',
+   bet:'Выигрыш по вычислениям в 1,25 раза, устойчивые градиенты по глубине и смягчение размывания PreNorm.',
+   hard:'В опубликованной оценке задержка вывода увеличивается менее чем на 2%; нужно сохранять предыдущие выходы в пределах блочной структуры.'}
+ ];
+ let cur=0;
+ CMP.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.t;b.className=i===0?'on':'';b.onclick=()=>{cur=i;$$('#f18tabs button').forEach((x,j)=>x.classList.toggle('on',j===i));render()};tabs.appendChild(b)});
+ function render(){
+  const c=CMP[cur];
+  body.innerHTML='';
+  const vs=div('vs');
+  const A=div('vpanel');const B=div('vpanel');
+  A.innerHTML=`<h4 class="ca" style="color:${c.lc}">${c.lt}</h4>`;
+  B.innerHTML=`<h4 class="cg" style="color:${c.rc}">${c.rt}</h4>`;
+  motif(c.id==='gdn2'?'gdn':c.id,true,A);
+  motif(c.id==='gdn2'?'gdn':c.id,false,B);
+  vs.appendChild(A);vs.appendChild(div('vsmid','↔'));vs.appendChild(B);
+  body.appendChild(vs);
+  const qa=div('qa');
+  qa.innerHTML=`<div class="q1"><b>Что изменилось</b>${c.ch}</div><div class="q2"><b>Зачем</b>${c.why}</div><div class="q3"><b>Что улучшилось</b>${c.bet}</div><div class="q4"><b>Что стало сложнее</b>${c.hard}</div>`;
+  body.appendChild(qa);
+ }
+ render();
+})();
+
+/* ============ KATEX ============ */
+function renderMath(root=document){
+ const eqs=$$('.eqtex',root);
+ if(window.katex){
+  eqs.forEach(el=>{
+   if(el.dataset.kxDone==='1')return;
+   const raw=el.textContent.trim().replace(/^\\\[/,'').replace(/\\\]$/,'').trim();
+   try{
+    katex.render(raw,el,{displayMode:true,throwOnError:false,trust:ctx=>ctx.command==='\\htmlClass',strict:'ignore'});
+    el.dataset.kxDone='1';
+   }catch(err){}
+  });
+ }
+ if(window.renderMathInElement){
+  renderMathInElement(root.body||root,{
+   delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],
+   trust:ctx=>ctx.command==='\\htmlClass',strict:'ignore',throwOnError:false
+  });
+ }
+ attachSyms();
+}
+function bootMath(tries=8){
+ renderMath(document);
+ const pending=$$('.eqtex').some(el=>el.dataset.kxDone!=='1');
+ if(tries>0&&pending)setTimeout(()=>bootMath(tries-1),180);
+}
+if(document.readyState==='complete')bootMath();
+else addEventListener('load',()=>bootMath());
+})();
+</script>
+</body>
+</html>

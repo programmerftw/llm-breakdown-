@@ -63,6 +63,8 @@ svg text{font-family:var(--f-mono);pointer-events:none}
 #topbar{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg2);border-bottom:1px solid var(--line);z-index:55;align-items:center;padding:0 16px;gap:12px}
 #topbar b{font-family:var(--f-head);font-size:14px}
 #topbar button{border:none;font-size:16px;padding:6px 10px;text-transform:none;letter-spacing:0}
+.lang-link{display:inline-block;font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line2);border-radius:3px;padding:5px 9px;margin-top:10px}
+#topbar .lang-link{margin:0 0 0 auto}
 @media(max-width:1080px){
   #sidebar{transform:translateX(-100%)}#sidebar.open{transform:none;box-shadow:0 0 60px rgba(0,0,0,.6)}
   #main{margin-left:0;padding-top:52px}#topbar{display:flex}
@@ -300,12 +302,13 @@ footer .made .heart{color:#F0555F}
 <div id="progress"></div>
 <div id="tip"></div>
 
-<div id="topbar"><button id="menuBtn" aria-label="Menu">☰</button><b>From GPT-2 to Kimi3</b></div>
+<div id="topbar"><button id="menuBtn" aria-label="Menu">☰</button><b>From GPT-2 to Kimi3</b><a class="lang-link" href="./index.ru.html" lang="ru">Русский</a></div>
 
 <aside id="sidebar">
   <div class="brand">
     <h3>From GPT-2 to Kimi3</h3>
     <p>An interactive architecture evolution</p>
+    <a class="lang-link" href="./index.ru.html" lang="ru">Русский</a>
   </div>
   <nav id="nav">
     <div class="grp">Origin</div>
